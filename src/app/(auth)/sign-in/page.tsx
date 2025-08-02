@@ -16,7 +16,7 @@ import { useAuth } from '@/hooks/use-auth';
 export default function SignInPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -24,10 +24,10 @@ export default function SignInPage() {
 
   useEffect(() => {
     // Redirect if user is already logged in
-    if (user) {
+    if (!loading && user) {
       router.push('/dashboard');
     }
-  }, [user, router]);
+  }, [user, loading, router]);
 
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -58,6 +58,10 @@ export default function SignInPage() {
     router.push('/dashboard');
     router.refresh(); // Refresh to ensure session state is updated
   };
+
+  if(loading || user) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <GlowingCard className="w-full max-w-md" glowColor="primary">
