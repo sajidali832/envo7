@@ -44,54 +44,69 @@ export default function RegisterPage() {
     setIsLoading(true);
     setError(null);
 
-    // Conditionally build the user metadata
-    const userMetaData: { [key: string]: any } = {
-        username: username,
-        selected_plan: selectedPlan?.id,
-    };
-    // Only add referred_by if refId is present and not an empty string
-    if (refId) {
-        userMetaData.referred_by = refId;
-    }
-
-    // Step 1: Sign up the user
+    // Step 1: Sign up the user with email and password only.
+    // The problematic database trigger is removed. We will create the profile manually after sign-up.
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: email,
       password: password,
-      options: {
-        data: userMetaData,
-      }
     });
 
     if (signUpError) {
-      // Display the specific error from Supabase instead of a generic message
-      setError(signUpError.message || 'An unknown error occurred during registration.');
+      setError(signUpError.message);
       setIsLoading(false);
       return;
     }
 
-    if (signUpData.user) {
-        // Since email confirmation is disabled, we can sign them in directly.
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
-
-        if (signInError) {
-             setError(`Registration successful, but login failed: ${signInError.message}`);
-             setIsLoading(false);
-        } else {
-            toast({
-                title: 'Account Created Successfully!',
-                description: "You're now being redirected to complete your investment.",
-            });
-            // Carry over refId to the investment page if it exists
-            const investmentUrl = refId ? `/invest?plan=${planId}&ref=${refId}` : `/invest?plan=${planId}`;
-            router.push(investmentUrl);
-        }
-    } else {
-        setError("An unexpected error occurred during registration. Please try again.");
+    // A user record is created in auth.users, but no profile yet.
+    const user = signUpData.user;
+    if (!user) {
+        setError("Could not create user account. Please try again.");
         setIsLoading(false);
+        return;
+    }
+
+    // Step 2: Manually insert the user's profile into the 'profiles' table.
+    // This is the new, reliable way to create a profile.
+    const profileData: {
+        id: string;
+        username: string;
+        selected_plan: string | undefined;
+        referred_by?: string;
+    } = {
+        id: user.id,
+        username: username,
+        selected_plan: selectedPlan?.id,
+    };
+    if (refId) {
+        profileData.referred_by = refId;
+    }
+
+    const { error: profileError } = await supabase.from('profiles').insert(profileData);
+
+    if (profileError) {
+        setError(`Your account was created, but we failed to set up your profile: ${profileError.message}. Please contact support.`);
+        // Note: At this point, the auth user exists but their profile doesn't.
+        // This is a state that might require manual intervention or a better retry mechanism.
+        setIsLoading(false);
+        return;
+    }
+
+    // Step 3: Sign in the user to create a session, then redirect.
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+    });
+
+    if (signInError) {
+         setError(`Registration successful, but login failed: ${signInError.message}`);
+         setIsLoading(false);
+    } else {
+        toast({
+            title: 'Account Created Successfully!',
+            description: "You're now being redirected to complete your investment.",
+        });
+        const investmentUrl = refId ? `/invest?plan=${planId}&ref=${refId}` : `/invest?plan=${planId}`;
+        router.push(investmentUrl);
     }
   };
   
