@@ -44,20 +44,27 @@ export default function RegisterPage() {
     setIsLoading(true);
     setError(null);
 
+    // Conditionally build the user metadata
+    const userMetaData: { [key: string]: any } = {
+        username: username,
+        selected_plan: selectedPlan?.id,
+    };
+    // Only add referred_by if refId is present and not an empty string
+    if (refId) {
+        userMetaData.referred_by = refId;
+    }
+
     // Step 1: Sign up the user
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: email,
       password: password,
       options: {
-        data: {
-          username: username,
-          selected_plan: selectedPlan?.id,
-          referred_by: refId, // Pass the referral ID here
-        }
+        data: userMetaData,
       }
     });
 
     if (signUpError) {
+      // Display the specific error from Supabase instead of a generic message
       setError(signUpError.message || 'An unknown error occurred during registration.');
       setIsLoading(false);
       return;
