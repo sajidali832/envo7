@@ -61,7 +61,7 @@ export default function RegisterPage() {
        if (signUpError.message.includes('User already registered')) {
         setError('This account is already registered.');
       } else {
-        setError(signUpError.message);
+        setError(signUpError.message || 'Database error saving new user');
       }
       setIsLoading(false);
       return;
