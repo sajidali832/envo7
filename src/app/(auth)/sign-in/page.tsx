@@ -23,7 +23,7 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Redirect if user is already logged in
+    // Redirect if user is already logged in and auth is no longer loading.
     if (!loading && user) {
       router.push('/dashboard');
     }
@@ -59,6 +59,10 @@ export default function SignInPage() {
     router.refresh(); // Refresh to ensure session state is updated
   };
 
+  //
+  // This check prevents rendering the form until the auth state is confirmed.
+  // This is crucial to prevent race conditions on initial load.
+  //
   if(loading || user) {
     return null; // Or a loading spinner
   }

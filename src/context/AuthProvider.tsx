@@ -23,6 +23,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
+    //
+    // This getSession() call is the key fix. It actively fetches and validates
+    // the session from Supabase on initial load.
+    //
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
@@ -51,5 +56,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loading,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  // We don't render anything until the initial session load is complete
+  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
 };
