@@ -62,6 +62,18 @@ type WithdrawalHistory = {
     requested_at: string;
 }
 
+type UserProfile = {
+    balance: number;
+    selected_plan: string;
+}
+
+const planRules: { [key: string]: { freeWithdrawals: number; requiredReferrals: number; min: number; max: number; } } = {
+    '1': { freeWithdrawals: 2, requiredReferrals: 2, min: 600, max: 1600 }, // Starter
+    '2': { freeWithdrawals: 3, requiredReferrals: 2, min: 600, max: 2000 }, // Advanced
+    '3': { freeWithdrawals: 5, requiredReferrals: 2, min: 600, max: 4000 }, // Pro
+};
+
+
 const StatusBadge = ({ status }: { status: string }) => {
     switch (status) {
         case 'approved':
@@ -78,7 +90,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 export default function WithdrawalsPage() {
     const { toast } = useToast();
     const { user, loading: authLoading } = useAuth();
-    const [userBalance, setUserBalance] = useState(0);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [withdrawalMethod, setWithdrawalMethod] = useState<WithdrawalMethod | null>(null);
     const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalHistory[]>([]);
@@ -98,12 +110,12 @@ export default function WithdrawalsPage() {
         try {
             // Fetch all data in parallel
             const [profileRes, methodRes, historyRes] = await Promise.all([
-                supabase.from('profiles').select('balance').eq('id', user.id).single(),
+                supabase.from('profiles').select('balance, selected_plan').eq('id', user.id).single(),
                 supabase.from('withdrawal_methods').select('*').eq('user_id', user.id).limit(1).maybeSingle(),
                 supabase.from('withdrawals').select('id, amount, status, requested_at').eq('user_id', user.id).order('requested_at', { ascending: false })
             ]);
 
-            if (profileRes.data) setUserBalance(profileRes.data.balance);
+            if (profileRes.data) setUserProfile(profileRes.data as UserProfile);
             
             if (methodRes.data) {
                 setWithdrawalMethod(methodRes.data);
@@ -117,8 +129,6 @@ export default function WithdrawalsPage() {
             if (historyRes.data) setWithdrawalHistory(historyRes.data);
 
             if (profileRes.error || methodRes.error || historyRes.error) {
-                 // We don't toast here as minor errors are not critical.
-                 // The UI will show loading or empty states.
                  console.error("Error fetching withdrawal data:", profileRes.error || methodRes.error || historyRes.error);
             }
         } catch (error) {
@@ -137,21 +147,14 @@ export default function WithdrawalsPage() {
 
         fetchData();
         
-        // Consolidated real-time subscription
         const channel = supabase.channel(`user-dashboard-${user.id}`)
             .on('postgres_changes', 
                 { event: '*', schema: 'public', filter: `user_id=eq.${user.id}` }, 
-                (payload) => {
-                    console.log('Change received on user channel, refetching data', payload);
-                    fetchData();
-                }
+                () => fetchData()
             )
             .on('postgres_changes', 
                 { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, 
-                (payload) => {
-                    console.log('Profile change received, refetching data', payload);
-                    fetchData();
-                }
+                () => fetchData()
             )
             .subscribe((status, err) => {
                 if (status === 'SUBSCRIBED') {
@@ -197,22 +200,45 @@ export default function WithdrawalsPage() {
     }
 
     const handleWithdrawalRequest = async () => {
+        if(!user || !withdrawalMethod || !userProfile) return;
+        
         const amount = parseFloat(withdrawalAmount);
+        const rules = planRules[userProfile.selected_plan];
+        
+        // --- Validation Logic ---
         if (isNaN(amount) || amount <= 0) {
             toast({ variant: 'destructive', title: "Invalid Amount", description: "Please enter a valid amount."});
             return;
         }
-        if (amount > userBalance) {
+        if (amount > userProfile.balance) {
             toast({ variant: 'destructive', title: "Insufficient Balance", description: "You cannot withdraw more than your available balance."});
             return;
         }
+        if (rules && (amount < rules.min || amount > rules.max)) {
+            toast({ variant: 'destructive', title: "Amount Out of Range", description: `Withdrawal amount must be between ${rules.min} and ${rules.max} PKR for your plan.`});
+            return;
+        }
 
-        if(!user || !withdrawalMethod) return;
+        // Check withdrawal count and referral requirements
+        if (rules) {
+            const { count: approvedWithdrawals, error: wError } = await supabase.from('withdrawals').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'approved');
+            const { count: referrals, error: rError } = await supabase.from('referrals').select('*', { count: 'exact', head: true }).eq('referrer_id', user.id);
+
+            if (wError || rError) {
+                 toast({ variant: 'destructive', title: "Validation Failed", description: "Could not verify your withdrawal eligibility." });
+                 return;
+            }
+
+            if ((approvedWithdrawals || 0) >= rules.freeWithdrawals && (referrals || 0) < rules.requiredReferrals) {
+                toast({ variant: 'destructive', title: "Referrals Required", description: `You must have ${rules.requiredReferrals} referrals to continue withdrawing.` });
+                return;
+            }
+        }
+        // --- End Validation ---
 
         setIsSubmitting(true);
-        const newBalance = userBalance - amount;
+        const newBalance = userProfile.balance - amount;
 
-        // 1. Deduct from balance
         const { error: balanceError } = await supabase.from('profiles').update({ balance: newBalance }).eq('id', user.id);
         if (balanceError) {
              toast({ variant: 'destructive', title: "Request Failed", description: balanceError.message });
@@ -220,7 +246,6 @@ export default function WithdrawalsPage() {
              return;
         }
 
-        // 2. Create withdrawal record
         const { error: withdrawalError } = await supabase.from('withdrawals').insert({
             user_id: user.id,
             amount: amount,
@@ -229,8 +254,7 @@ export default function WithdrawalsPage() {
         });
 
         if (withdrawalError) {
-            // Rollback balance deduction
-            await supabase.from('profiles').update({ balance: userBalance }).eq('id', user.id);
+            await supabase.from('profiles').update({ balance: userProfile.balance }).eq('id', user.id); // Rollback
             toast({ variant: 'destructive', title: "Request Failed", description: withdrawalError.message });
             setIsSubmitting(false);
             return;
@@ -255,7 +279,7 @@ export default function WithdrawalsPage() {
     }
 
     return (
-        <div className="p-4 md:p-8 space-y-8">
+        <div className="p-4 md:p-8 space-y-6">
             <div className="flex justify-between items-start">
                 <div>
                     <h1 className="text-2xl font-bold">Withdrawals</h1>
@@ -263,7 +287,7 @@ export default function WithdrawalsPage() {
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-6 md:grid-cols-2">
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center justify-between">
@@ -349,7 +373,7 @@ export default function WithdrawalsPage() {
                     <CardContent className="space-y-4">
                          {withdrawalMethod ? (
                             <>
-                                <p className="text-sm text-muted-foreground">Available Balance: <span className="font-bold text-primary">{userBalance.toLocaleString()} PKR</span></p>
+                                <p className="text-sm text-muted-foreground">Available Balance: <span className="font-bold text-primary">{userProfile?.balance.toLocaleString() ?? '0'} PKR</span></p>
                                 <div className="flex gap-2">
                                     <Input 
                                         type="number" 
@@ -406,7 +430,7 @@ export default function WithdrawalsPage() {
                                     </TableRow>
                                 ) : withdrawalHistory.length > 0 ? withdrawalHistory.map((item) => (
                                     <TableRow key={item.id}>
-                                    <TableCell>{new Date(item.requested_at).toLocaleDateString()}</TableCell>
+                                    <TableCell className="text-xs">{new Date(item.requested_at).toLocaleDateString()}</TableCell>
                                     <TableCell>{item.amount.toLocaleString()} PKR</TableCell>
                                     <TableCell className="text-right">
                                         <StatusBadge status={item.status} />
