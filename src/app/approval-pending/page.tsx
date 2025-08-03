@@ -25,10 +25,11 @@ export default function ApprovalPendingPage() {
     }
 
     let channel: any;
-    let timeout: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout;
 
     const checkStatus = async () => {
-        // Find the latest investment for the user
+        if (!user) return;
+        
         const { data: investment, error } = await supabase
             .from('investments')
             .select('status')
@@ -37,20 +38,22 @@ export default function ApprovalPendingPage() {
             .limit(1)
             .single();
 
-        if (error || !investment) {
-            console.error('Error fetching investment status:', error);
-            // If no investment found, maybe redirect to dashboard or plans page
-            router.push('/dashboard'); 
+        if (error) {
+            // This can happen if no investment record is found, which is okay.
+            // It means the user might not belong here. Redirect them.
+            if (error.code !== 'PGRST116') { // PGRST116 = "exact one row not returned"
+                 console.error('Error fetching investment status:', error);
+            }
+            router.push('/dashboard');
             return;
         }
-
+        
         const currentStatus = investment.status as ApprovalStatus;
         setStatus(currentStatus);
         setLoading(false);
 
         if (currentStatus === 'approved') {
-            // Give a moment for the user to see the success message
-            timeout = setTimeout(() => router.push('/dashboard'), 3000);
+            timeoutId = setTimeout(() => router.push('/dashboard'), 3000);
         }
     };
     
@@ -62,20 +65,18 @@ export default function ApprovalPendingPage() {
         { event: 'UPDATE', schema: 'public', table: 'investments', filter: `user_id=eq.${user.id}` }, 
         (payload) => {
             const newStatus = payload.new.status as ApprovalStatus;
-            if (newStatus !== status) {
-                setStatus(newStatus);
-                 if (newStatus === 'approved') {
-                    timeout = setTimeout(() => router.push('/dashboard'), 3000);
-                 }
+            setStatus(newStatus);
+            if (newStatus === 'approved') {
+                timeoutId = setTimeout(() => router.push('/dashboard'), 3000);
             }
         }
     ).subscribe();
 
     return () => {
       if (channel) supabase.removeChannel(channel);
-      if (timeout) clearTimeout(timeout);
+      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [user, authLoading, router, status]);
+  }, [user, authLoading, router]);
 
   const renderContent = () => {
     if (loading || authLoading) {
@@ -129,7 +130,10 @@ export default function ApprovalPendingPage() {
             </div>
           ),
           footer: (
-             <Button variant="outline" className="w-full" onClick={() => router.push('/dashboard/settings')}>
+             <Button variant="outline" className="w-full" onClick={async () => {
+                 await supabase.auth.signOut();
+                 router.push('/');
+             }}>
               Logout
             </Button>
           )
