@@ -92,7 +92,7 @@ export async function updateInvestmentStatus(investment: Investment, newStatus: 
     if (newStatus === 'approved') {
         const { data: profile, error: fetchError } = await supabaseAdmin
             .from('profiles')
-            .select('balance, referred_by')
+            .select('total_investment, balance, referred_by')
             .eq('id', investment.user_id)
             .single();
         
@@ -100,11 +100,11 @@ export async function updateInvestmentStatus(investment: Investment, newStatus: 
             return { success: false, error: `Failed to fetch user profile: ${fetchError?.message}` };
         }
 
-        const newBalance = (profile.balance || 0) + investment.amount;
+        const newTotalInvestment = (profile.total_investment || 0) + investment.amount;
 
         const { error: profileError } = await supabaseAdmin
             .from('profiles')
-            .update({ status: 'active', balance: newBalance })
+            .update({ status: 'active', total_investment: newTotalInvestment })
             .eq('id', investment.user_id);
         
         if (profileError) {
