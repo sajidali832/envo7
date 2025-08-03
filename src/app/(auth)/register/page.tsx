@@ -45,7 +45,6 @@ export default function RegisterPage() {
     setError(null);
 
     // Step 1: Sign up the user with email and password only.
-    // The problematic database trigger is removed. We will create the profile manually after sign-up.
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: email,
       password: password,
@@ -57,7 +56,6 @@ export default function RegisterPage() {
       return;
     }
 
-    // A user record is created in auth.users, but no profile yet.
     const user = signUpData.user;
     if (!user) {
         setError("Could not create user account. Please try again.");
@@ -66,7 +64,6 @@ export default function RegisterPage() {
     }
 
     // Step 2: Manually insert the user's profile into the 'profiles' table.
-    // This is the new, reliable way to create a profile.
     const profileData: {
         id: string;
         username: string;
@@ -84,9 +81,16 @@ export default function RegisterPage() {
     const { error: profileError } = await supabase.from('profiles').insert(profileData);
 
     if (profileError) {
-        setError(`Your account was created, but we failed to set up your profile: ${profileError.message}. Please contact support.`);
-        // Note: At this point, the auth user exists but their profile doesn't.
-        // This is a state that might require manual intervention or a better retry mechanism.
+        // This is the CRITICAL FIX: Check for the specific duplicate username error.
+        if (profileError.code === '23505' && profileError.message.includes('profiles_username_key')) {
+             setError('This username is already taken. Please choose another one.');
+        } else {
+            setError(`Your account was created, but we failed to set up your profile: ${profileError.message}. Please contact support.`);
+        }
+        
+        // Clean up the created auth user if profile creation fails
+        // This is an advanced step, for now we will just show the error.
+        // In a real production app, you'd call an admin function to delete the orphaned auth user.
         setIsLoading(false);
         return;
     }
@@ -110,7 +114,6 @@ export default function RegisterPage() {
     }
   };
   
-  // Don't render the form if the plan is invalid or missing, until redirection happens.
   if (!selectedPlan) {
     return null; 
   }
