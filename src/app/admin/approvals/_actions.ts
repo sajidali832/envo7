@@ -30,7 +30,7 @@ export async function getPendingApprovals(): Promise<{data: any[] | null, error:
 
     if (investmentError) {
         console.error('Error fetching investments:', investmentError);
-        return { data: null, error: investmentError };
+        return { data: null, error: `Failed to fetch investments: ${investmentError.message}` };
     }
 
     if (!investmentData || investmentData.length === 0) {
@@ -47,7 +47,7 @@ export async function getPendingApprovals(): Promise<{data: any[] | null, error:
     
     if (profilesError) {
         console.error('Error fetching profiles:', profilesError);
-        return { data: null, error: 'Failed to fetch user profiles.' };
+        return { data: null, error: `Failed to fetch user profiles: ${profilesError.message}` };
     }
 
     const profilesMap = new Map(profilesData.map(p => [p.id, p]));
@@ -57,7 +57,7 @@ export async function getPendingApprovals(): Promise<{data: any[] | null, error:
     
     if (authError || !authData) {
         console.error('Could not fetch user emails:', authError);
-        return { data: null, error: 'Could not fetch user emails.' };
+        return { data: null, error: `Could not fetch user emails: ${authError?.message}` };
     }
     
     const emailMap = new Map(authData.users.map(u => [u.id, u.email]));
