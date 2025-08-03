@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -91,52 +91,81 @@ export default function WithdrawalsPage() {
     const [withdrawalAmount, setWithdrawalAmount] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         if (!user) return;
         setIsLoading(true);
 
-        // Fetch user balance
-        const { data: profile, error: profileError } = await supabase.from('profiles').select('balance').eq('id', user.id).single();
-        if (profile) setUserBalance(profile.balance);
+        try {
+            // Fetch all data in parallel
+            const [profileRes, methodRes, historyRes] = await Promise.all([
+                supabase.from('profiles').select('balance').eq('id', user.id).single(),
+                supabase.from('withdrawal_methods').select('*').eq('user_id', user.id).limit(1).maybeSingle(),
+                supabase.from('withdrawals').select('id, amount, status, requested_at').eq('user_id', user.id).order('requested_at', { ascending: false })
+            ]);
 
-        // Fetch withdrawal method
-        const { data: methodData, error: methodError } = await supabase.from('withdrawal_methods').select('*').eq('user_id', user.id).limit(1).maybeSingle();
-        if (methodData) {
-            setWithdrawalMethod(methodData);
-            setMethod(methodData.method);
-            setHolderName(methodData.holder_name);
-            setAccountNumber(methodData.account_number);
-        }
+            if (profileRes.data) setUserBalance(profileRes.data.balance);
+            
+            if (methodRes.data) {
+                setWithdrawalMethod(methodRes.data);
+                setMethod(methodRes.data.method);
+                setHolderName(methodRes.data.holder_name);
+                setAccountNumber(methodRes.data.account_number);
+            } else {
+                setWithdrawalMethod(null);
+            }
 
-        // Fetch withdrawal history
-        const { data: historyData, error: historyError } = await supabase.from('withdrawals').select('id, amount, status, requested_at').eq('user_id', user.id).order('requested_at', { ascending: false });
-        if(historyData) setWithdrawalHistory(historyData);
-        
-        if (profileError || methodError || historyError) {
+            if (historyRes.data) setWithdrawalHistory(historyRes.data);
+
+            if (profileRes.error || methodRes.error || historyRes.error) {
+                 // We don't toast here as minor errors are not critical.
+                 // The UI will show loading or empty states.
+                 console.error("Error fetching withdrawal data:", profileRes.error || methodRes.error || historyRes.error);
+            }
+        } catch (error) {
+            console.error("Catastrophic error fetching withdrawal data:", error);
             toast({ variant: 'destructive', title: "Error", description: "Failed to fetch withdrawal data." });
+        } finally {
+            setIsLoading(false);
         }
-
-        setIsLoading(false);
-    }
+    }, [user, toast]);
     
     useEffect(() => {
-        if (authLoading) return;
-        if (!user) {
+        if (authLoading || !user) {
             setIsLoading(false);
             return;
         }
 
         fetchData();
-        const channel = supabase.channel('realtime-withdrawals-user')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawals', filter: `user_id=eq.${user.id}` }, fetchData)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_methods', filter: `user_id=eq.${user.id}` }, fetchData)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, fetchData)
-            .subscribe();
+        
+        // Consolidated real-time subscription
+        const channel = supabase.channel(`user-dashboard-${user.id}`)
+            .on('postgres_changes', 
+                { event: '*', schema: 'public', filter: `user_id=eq.${user.id}` }, 
+                (payload) => {
+                    console.log('Change received on user channel, refetching data', payload);
+                    fetchData();
+                }
+            )
+            .on('postgres_changes', 
+                { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, 
+                (payload) => {
+                    console.log('Profile change received, refetching data', payload);
+                    fetchData();
+                }
+            )
+            .subscribe((status, err) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log('Realtime channel subscribed!');
+                }
+                if (status === 'CHANNEL_ERROR') {
+                    console.error('Realtime channel error:', err);
+                }
+            });
         
         return () => {
             supabase.removeChannel(channel);
         }
-    }, [user, authLoading])
+    }, [user, authLoading, fetchData])
 
     const handleSaveMethod = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -163,7 +192,6 @@ export default function WithdrawalsPage() {
               className: "bg-green-100 text-green-800 border-green-300"
             });
             setIsFormOpen(false);
-            fetchData();
         }
         setIsSubmitting(false);
     }
@@ -184,7 +212,6 @@ export default function WithdrawalsPage() {
         setIsSubmitting(true);
         const newBalance = userBalance - amount;
 
-        // Start transaction
         // 1. Deduct from balance
         const { error: balanceError } = await supabase.from('profiles').update({ balance: newBalance }).eq('id', user.id);
         if (balanceError) {
@@ -211,7 +238,6 @@ export default function WithdrawalsPage() {
 
         toast({ title: "Request Submitted", description: `Your withdrawal request for ${amount} PKR is being processed.`});
         setWithdrawalAmount('');
-        // No need to call fetchData(), realtime subscription will handle it.
         setIsSubmitting(false);
     }
 
@@ -222,6 +248,10 @@ export default function WithdrawalsPage() {
             setAccountNumber(withdrawalMethod.account_number);
         }
         setIsFormOpen(true);
+    }
+
+    if (authLoading) {
+        return <p className="p-8">Loading dashboard...</p>;
     }
 
     return (
