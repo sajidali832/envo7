@@ -48,14 +48,14 @@ export async function getPendingApprovals(): Promise<{data: any[] | null, error:
     }
 
     // Now fetch the user emails using the admin client
-    const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers();
     
-    if (authError) {
+    if (authError || !authData) {
         console.error('Could not fetch user emails:', authError);
         return { data: null, error: 'Could not fetch user emails.' };
     }
     
-    const emailMap = new Map(users.map(u => [u.id, u.email]));
+    const emailMap = new Map(authData.users.map(u => [u.id, u.email]));
     const approvalsWithEmails = investmentData.map(approval => ({
         ...approval,
         email: emailMap.get(approval.user_id),
