@@ -20,21 +20,11 @@ type Investment = {
 
 // This function runs on the server and uses the admin client to fetch data.
 export async function getPendingApprovals(): Promise<{data: any[] | null, error: PostgrestError | string | null}> {
+    
+    // Step 1: Fetch pending investments.
     const { data: investmentData, error: investmentError } = await supabaseAdmin
         .from('investments')
-        .select(`
-            id,
-            user_id,
-            amount,
-            status,
-            proof_screenshot_url,
-            submitted_at,
-            plan_id,
-            profiles (
-                username,
-                referred_by
-            )
-        `)
+        .select(`*`)
         .eq('status', 'pending')
         .order('submitted_at', { ascending: true });
 
@@ -43,11 +33,26 @@ export async function getPendingApprovals(): Promise<{data: any[] | null, error:
         return { data: null, error: investmentError };
     }
 
-    if (!investmentData) {
+    if (!investmentData || investmentData.length === 0) {
         return { data: [], error: null };
     }
 
-    // Now fetch the user emails using the admin client
+    const userIds = investmentData.map(inv => inv.user_id);
+
+    // Step 2: Fetch corresponding profiles for all pending investments.
+    const { data: profilesData, error: profilesError } = await supabaseAdmin
+        .from('profiles')
+        .select('id, username, referred_by')
+        .in('id', userIds);
+    
+    if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        return { data: null, error: 'Failed to fetch user profiles.' };
+    }
+
+    const profilesMap = new Map(profilesData.map(p => [p.id, p]));
+
+    // Step 3: Fetch all user emails.
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (authError || !authData) {
@@ -56,12 +61,18 @@ export async function getPendingApprovals(): Promise<{data: any[] | null, error:
     }
     
     const emailMap = new Map(authData.users.map(u => [u.id, u.email]));
-    const approvalsWithEmails = investmentData.map(approval => ({
-        ...approval,
-        email: emailMap.get(approval.user_id),
-    }));
+    
+    // Step 4: Combine all data safely.
+    const approvalsWithDetails = investmentData.map(approval => {
+        const profile = profilesMap.get(approval.user_id);
+        return {
+            ...approval,
+            profiles: profile ? { username: profile.username, referred_by: profile.referred_by } : null,
+            email: emailMap.get(approval.user_id),
+        }
+    });
 
-    return { data: approvalsWithEmails, error: null };
+    return { data: approvalsWithDetails, error: null };
 }
 
 
