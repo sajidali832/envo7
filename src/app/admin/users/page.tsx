@@ -19,7 +19,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   DropdownMenu,
@@ -148,6 +147,7 @@ export default function AllUsersPage() {
                 </CardHeader>
                 <CardContent>
                     {isLoading ? <p>Loading users...</p> : (
+                        <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -195,6 +195,7 @@ export default function AllUsersPage() {
                                 ))}
                             </TableBody>
                         </Table>
+                        </div>
                     )}
                 </CardContent>
             </Card>
@@ -241,21 +242,21 @@ export default function AllUsersPage() {
                  <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Edit User: {selectedUser?.username}</DialogTitle>
-                        <DialogDescription>Adjust the financial details for this user.</DialogDescription>
+                        <DialogDescription>Adjust the financial details for this user. This is for corrections only.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleUpdateUser}>
                         <div className="space-y-4 py-4">
                             <div>
-                                <Label htmlFor="balance">Withdrawable Balance (PKR)</Label>
-                                <Input id="balance" type="number" value={editBalance} onChange={(e) => setEditBalance(parseFloat(e.target.value))} required />
+                                <Label htmlFor="balance">Total Earnings (Withdrawable Balance)</Label>
+                                <Input id="balance" type="number" step="any" value={editBalance} onChange={(e) => setEditBalance(parseFloat(e.target.value) || 0)} required />
                             </div>
                             <div>
-                                <Label htmlFor="dailyEarnings">Daily Earnings (PKR)</Label>
-                                <Input id="dailyEarnings" type="number" value={editDailyEarnings} onChange={(e) => setEditDailyEarnings(parseFloat(e.target.value))} required />
+                                <Label htmlFor="dailyEarnings">Total Daily Earnings (Cumulative)</Label>
+                                <Input id="dailyEarnings" type="number" step="any" value={editDailyEarnings} onChange={(e) => setEditDailyEarnings(parseFloat(e.target.value) || 0)} required />
                             </div>
                             <div>
-                                <Label htmlFor="referralEarnings">Referral Earnings (PKR)</Label>
-                                <Input id="referralEarnings" type="number" value={editReferralEarnings} onChange={(e) => setEditReferralEarnings(parseFloat(e.target.value))} required />
+                                <Label htmlFor="referralEarnings">Total Referral Earnings (Cumulative)</Label>
+                                <Input id="referralEarnings" type="number" step="any" value={editReferralEarnings} onChange={(e) => setEditReferralEarnings(parseFloat(e.target.value) || 0)} required />
                             </div>
                         </div>
                         <DialogFooter>

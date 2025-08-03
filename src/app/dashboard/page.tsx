@@ -15,7 +15,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 
 type DashboardStats = {
-    total_earnings: number;
+    total_earnings: number; // This is the user's balance
     total_investment: number;
     total_referral_earnings: number;
 }
@@ -31,18 +31,16 @@ export default function DashboardPage() {
                 setIsLoading(true);
                 const { data: profileData, error: profileError } = await supabase
                     .from('profiles')
-                    .select('total_investment, daily_earnings, referral_earnings')
+                    .select('balance, total_investment, referral_earnings')
                     .eq('id', user.id)
                     .single();
 
                 if (profileError) {
                     console.error('Error fetching profile:', profileError);
                 } else {
-                    const totalEarnings = (profileData?.daily_earnings || 0) + (profileData?.referral_earnings || 0);
-
                     setStats({
                         total_investment: profileData?.total_investment || 0,
-                        total_earnings: totalEarnings,
+                        total_earnings: profileData?.balance || 0,
                         total_referral_earnings: profileData?.referral_earnings || 0,
                     });
                 }

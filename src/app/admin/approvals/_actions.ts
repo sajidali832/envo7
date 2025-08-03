@@ -114,19 +114,19 @@ export async function updateInvestmentStatus(investment: Investment, newStatus: 
         }
 
         // Handle referral bonus if applicable
-        if (profile.referred_by) {
+        if (investment.profiles?.referred_by) {
             const referralBonus = 200;
 
             // Fetch referrer's profile
             const { data: referrerProfile, error: referrerFetchError } = await supabaseAdmin
                 .from('profiles')
                 .select('balance, referral_earnings')
-                .eq('id', profile.referred_by)
+                .eq('id', investment.profiles.referred_by)
                 .single();
             
             if (referrerFetchError || !referrerProfile) {
                  // Log error but don't block the approval process
-                console.error(`Referral bonus failed: Could not fetch referrer profile for user ${profile.referred_by}. Error: ${referrerFetchError?.message}`);
+                console.error(`Referral bonus failed: Could not fetch referrer profile for user ${investment.profiles.referred_by}. Error: ${referrerFetchError?.message}`);
             } else {
                  const newReferrerBalance = (referrerProfile.balance || 0) + referralBonus;
                  const newReferralEarnings = (referrerProfile.referral_earnings || 0) + referralBonus;
@@ -135,22 +135,22 @@ export async function updateInvestmentStatus(investment: Investment, newStatus: 
                  const { error: referrerUpdateError } = await supabaseAdmin
                     .from('profiles')
                     .update({ balance: newReferrerBalance, referral_earnings: newReferralEarnings })
-                    .eq('id', profile.referred_by);
+                    .eq('id', investment.profiles.referred_by);
                 
                 if (referrerUpdateError) {
-                    console.error(`Referral bonus failed: Could not update referrer profile for user ${profile.referred_by}. Error: ${referrerUpdateError.message}`);
+                    console.error(`Referral bonus failed: Could not update referrer profile for user ${investment.profiles.referred_by}. Error: ${referrerUpdateError.message}`);
                 } else {
                     // Log the referral transaction
                     const { error: referralLogError } = await supabaseAdmin
                         .from('referrals')
                         .insert({
-                            referrer_id: profile.referred_by,
+                            referrer_id: investment.profiles.referred_by,
                             referred_id: investment.user_id,
                             bonus_amount: referralBonus,
                         });
                     
                     if(referralLogError) {
-                         console.error(`Referral bonus failed: Could not log referral for referrer ${profile.referred_by} and new user ${investment.user_id}. Error: ${referralLogError.message}`);
+                         console.error(`Referral bonus failed: Could not log referral for referrer ${investment.profiles.referred_by} and new user ${investment.user_id}. Error: ${referralLogError.message}`);
                     }
                 }
             }

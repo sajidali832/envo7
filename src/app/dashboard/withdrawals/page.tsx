@@ -44,7 +44,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
 
@@ -89,17 +88,18 @@ export default function WithdrawalsPage() {
     const [accountNumber, setAccountNumber] = useState('');
 
     const [withdrawalAmount, setWithdrawalAmount] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const fetchData = async () => {
         if (!user) return;
         setIsLoading(true);
 
         // Fetch user balance
-        const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).single();
+        const { data: profile, error: profileError } = await supabase.from('profiles').select('balance').eq('id', user.id).single();
         if (profile) setUserBalance(profile.balance);
 
         // Fetch withdrawal method
-        const { data: methodData } = await supabase.from('withdrawal_methods').select('*').eq('user_id', user.id).limit(1).maybeSingle();
+        const { data: methodData, error: methodError } = await supabase.from('withdrawal_methods').select('*').eq('user_id', user.id).limit(1).maybeSingle();
         if (methodData) {
             setWithdrawalMethod(methodData);
             setMethod(methodData.method);
@@ -108,9 +108,13 @@ export default function WithdrawalsPage() {
         }
 
         // Fetch withdrawal history
-        const { data: historyData } = await supabase.from('withdrawals').select('id, amount, status, requested_at').eq('user_id', user.id).order('requested_at', { ascending: false });
+        const { data: historyData, error: historyError } = await supabase.from('withdrawals').select('id, amount, status, requested_at').eq('user_id', user.id).order('requested_at', { ascending: false });
         if(historyData) setWithdrawalHistory(historyData);
         
+        if (profileError || methodError || historyError) {
+            toast({ variant: 'destructive', title: "Error", description: "Failed to fetch withdrawal data." });
+        }
+
         setIsLoading(false);
     }
     
@@ -123,8 +127,9 @@ export default function WithdrawalsPage() {
 
         fetchData();
         const channel = supabase.channel('realtime-withdrawals-user')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawals' }, fetchData)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_methods' }, fetchData)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawals', filter: `user_id=eq.${user.id}` }, fetchData)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawal_methods', filter: `user_id=eq.${user.id}` }, fetchData)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, fetchData)
             .subscribe();
         
         return () => {
@@ -135,6 +140,7 @@ export default function WithdrawalsPage() {
     const handleSaveMethod = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) return;
+        setIsSubmitting(true);
 
         const methodDetails = {
             user_id: user.id,
@@ -158,6 +164,7 @@ export default function WithdrawalsPage() {
             setIsFormOpen(false);
             fetchData();
         }
+        setIsSubmitting(false);
     }
 
     const handleWithdrawalRequest = async () => {
@@ -173,6 +180,7 @@ export default function WithdrawalsPage() {
 
         if(!user || !withdrawalMethod) return;
 
+        setIsSubmitting(true);
         const newBalance = userBalance - amount;
 
         // Start transaction
@@ -180,6 +188,7 @@ export default function WithdrawalsPage() {
         const { error: balanceError } = await supabase.from('profiles').update({ balance: newBalance }).eq('id', user.id);
         if (balanceError) {
              toast({ variant: 'destructive', title: "Request Failed", description: balanceError.message });
+             setIsSubmitting(false);
              return;
         }
 
@@ -195,12 +204,14 @@ export default function WithdrawalsPage() {
             // Rollback balance deduction
             await supabase.from('profiles').update({ balance: userBalance }).eq('id', user.id);
             toast({ variant: 'destructive', title: "Request Failed", description: withdrawalError.message });
+            setIsSubmitting(false);
             return;
         }
 
         toast({ title: "Request Submitted", description: `Your withdrawal request for ${amount} PKR is being processed.`});
         setWithdrawalAmount('');
-        fetchData();
+        // No need to call fetchData(), realtime subscription will handle it.
+        setIsSubmitting(false);
     }
 
     const openEditForm = () => {
@@ -250,7 +261,7 @@ export default function WithdrawalsPage() {
                         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
                             <DialogTrigger asChild>
                                 {!withdrawalMethod && (
-                                    <Button className="w-full" variant="outline">
+                                    <Button className="w-full" variant="outline" disabled={isLoading}>
                                         <PlusCircle className="mr-2 h-4 w-4" /> Add New Method
                                     </Button>
                                 )}
@@ -292,7 +303,7 @@ export default function WithdrawalsPage() {
                                         </div>
                                     </div>
                                     <DialogFooter>
-                                        <Button type="submit">Save Information</Button>
+                                        <Button type="submit" isLoading={isSubmitting}>Save Information</Button>
                                     </DialogFooter>
                                 </form>
                             </DialogContent>
@@ -314,10 +325,11 @@ export default function WithdrawalsPage() {
                                         placeholder="Amount in PKR"
                                         value={withdrawalAmount}
                                         onChange={e => setWithdrawalAmount(e.target.value)}
+                                        disabled={isSubmitting || isLoading}
                                     />
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <Button disabled={!withdrawalAmount}>Request</Button>
+                                            <Button disabled={!withdrawalAmount || isSubmitting || isLoading}>Request</Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
@@ -347,32 +359,38 @@ export default function WithdrawalsPage() {
                     <CardDescription>A complete record of your withdrawal requests.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Amount</TableHead>
-                            <TableHead className="text-right">Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {withdrawalHistory.length > 0 ? withdrawalHistory.map((item) => (
-                                <TableRow key={item.id}>
-                                <TableCell>{new Date(item.requested_at).toLocaleString()}</TableCell>
-                                <TableCell>{item.amount.toLocaleString()} PKR</TableCell>
-                                <TableCell className="text-right">
-                                    <StatusBadge status={item.status} />
-                                </TableCell>
-                                </TableRow>
-                            )) : (
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={3} className="text-center h-24">
-                                        You have no withdrawal history.
-                                    </TableCell>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Amount</TableHead>
+                                <TableHead className="text-right">Status</TableHead>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={3} className="text-center h-24">Loading history...</TableCell>
+                                    </TableRow>
+                                ) : withdrawalHistory.length > 0 ? withdrawalHistory.map((item) => (
+                                    <TableRow key={item.id}>
+                                    <TableCell>{new Date(item.requested_at).toLocaleDateString()}</TableCell>
+                                    <TableCell>{item.amount.toLocaleString()} PKR</TableCell>
+                                    <TableCell className="text-right">
+                                        <StatusBadge status={item.status} />
+                                    </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={3} className="text-center h-24">
+                                            You have no withdrawal history.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
         </div>

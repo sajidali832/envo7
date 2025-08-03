@@ -104,26 +104,43 @@ export async function updateWithdrawalStatus(withdrawalId: number, newStatus: 'a
         return { success: false, error: `Failed to fetch withdrawal: ${fetchError?.message}`};
     }
 
-    // If rejecting, we don't need to adjust balance.
+    // If rejecting, we refund the amount to the user's balance.
     if (newStatus === 'rejected') {
-        // Refund the amount to the user's balance
-        const newBalance = (withdrawal.profiles?.balance || 0) + withdrawal.amount;
+        // Fetch the user's current balance
+        const { data: profile, error: profileFetchError } = await supabaseAdmin
+            .from('profiles')
+            .select('balance')
+            .eq('id', withdrawal.user_id)
+            .single();
+
+        if (profileFetchError || !profile) {
+            return { success: false, error: `Failed to fetch user for refund: ${profileFetchError?.message}` };
+        }
+        
+        const newBalance = (profile.balance || 0) + withdrawal.amount;
         const { error: profileError } = await supabaseAdmin
             .from('profiles')
             .update({ balance: newBalance })
             .eq('id', withdrawal.user_id);
         
         if (profileError) {
+            // If refund fails, we should not proceed with rejection.
             return { success: false, error: `Failed to refund user balance: ${profileError.message}` };
         }
     }
     
+    // For both 'approved' and 'rejected', update the withdrawal status.
     const { error: updateError } = await supabaseAdmin
         .from('withdrawals')
         .update({ status: newStatus })
         .eq('id', withdrawalId);
 
     if (updateError) {
+        // If status update fails after a rejection refund, we should ideally try to revert the refund.
+        // For now, we will just report the error.
+        if (newStatus === 'rejected') {
+             console.error(`CRITICAL: User ${withdrawal.user_id} was refunded ${withdrawal.amount} but withdrawal status failed to update to 'rejected'. Manual correction needed.`);
+        }
         return { success: false, error: `Failed to update withdrawal status: ${updateError.message}` };
     }
     
