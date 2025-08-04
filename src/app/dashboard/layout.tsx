@@ -43,24 +43,20 @@ export default function DashboardLayout({
           return;
       }
 
-      // If loading is done, and there's no user, redirect to sign-in
+      // If loading is done, and there's no user, or user is not active, redirect.
+      // The main page.tsx handles the initial redirect, this is a safeguard.
       if (!user) {
           router.replace('/sign-in');
           return;
       }
       
-      // If there is a user, check their profile status for redirects
-      if (profile) {
+      if (profile && profile.status !== 'active') {
         if (profile.status === 'pending_approval' || profile.status === 'pending_investment') {
             router.replace('/approval-pending');
-        } else if (profile.status !== 'active') {
-            // This handles cases like 'rejected' or 'inactive'
+        } else {
+            // Handles cases like 'rejected' or 'inactive'
             router.replace('/plans');
         }
-      } else {
-        // This can happen briefly if the user is created but profile is not yet.
-        // It's safest to send them to the start of the process, or sign-in.
-        router.replace('/sign-in');
       }
 
   }, [user, profile, loading, router]);
@@ -70,7 +66,7 @@ export default function DashboardLayout({
   if (loading) {
       return (
           <div className="min-h-screen flex items-center justify-center">
-              <p>Loading...</p>
+              <p>Loading Dashboard...</p>
           </div>
       );
   }
