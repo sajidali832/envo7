@@ -68,22 +68,27 @@ export function InvestForm() {
     }
 
     // 2. Get public URL
-    const { data: { publicUrl } } = supabase.storage.from('proofs').getPublicUrl(filePath);
+    const { data: urlData } = supabase.storage.from('proofs').getPublicUrl(filePath);
+
+    if (!urlData || !urlData.publicUrl) {
+        toast({ variant: 'destructive', title: 'Upload Failed', description: "Could not get the public URL for the uploaded file." });
+        setIsLoading(false);
+        return;
+    }
 
     // 3. Insert investment record
     const { error: insertError } = await supabase.from('investments').insert({
         user_id: user.id,
         plan_id: selectedPlan.id,
         amount: selectedPlan.price,
-        status: 'pending', // This status is for the investment itself
-        proof_screenshot_url: publicUrl,
+        status: 'pending', 
+        proof_screenshot_url: urlData.publicUrl,
         user_account_holder_name: holderName,
         user_account_number: accountNumber
     });
 
     if (insertError) {
         toast({ variant: 'destructive', title: 'Submission Failed', description: insertError.message });
-        // Optional: Clean up uploaded file if DB insert fails
         await supabase.storage.from('proofs').remove([filePath]);
         setIsLoading(false);
         return;

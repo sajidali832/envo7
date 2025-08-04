@@ -32,51 +32,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (user: User | null) => {
-    if (user) {
+    if (!user) {
+      setProfile(null);
+      return;
+    }
+    
+    try {
         const { data, error } = await supabase
             .from('profiles')
             .select('id, username, status')
             .eq('id', user.id)
             .single();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 = row not found, which is ok
+        if (error && error.code !== 'PGRST116') {
             console.error('Error fetching user profile:', error);
             setProfile(null);
         } else {
             setProfile(data as AuthProfile);
         }
-    } else {
+    } catch (e) {
+        console.error('Exception fetching profile:', e);
         setProfile(null);
     }
   }, []);
 
   useEffect(() => {
-    const getInitialSession = async () => {
-      setLoading(true);
+    const initializeAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       await fetchProfile(currentUser);
       setLoading(false);
+
+      const { data: authListener } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          setLoading(true);
+          setSession(session);
+          const newCurrentUser = session?.user ?? null;
+          setUser(newCurrentUser);
+          await fetchProfile(newCurrentUser);
+          setLoading(false);
+        }
+      );
+
+      return () => {
+        authListener.subscription.unsubscribe();
+      };
     };
 
-    getInitialSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setLoading(true);
-        setSession(session);
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-        await fetchProfile(currentUser);
-        setLoading(false);
-      }
-    );
-
+    const unsubscribe = initializeAuth();
+    
     return () => {
-      authListener.subscription.unsubscribe();
-    };
+      unsubscribe.then(cleanup => cleanup && cleanup());
+    }
   }, [fetchProfile]);
 
   const value = {

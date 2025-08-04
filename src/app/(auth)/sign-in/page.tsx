@@ -56,15 +56,19 @@ export default function SignInPage() {
       description: 'Welcome back.',
     });
     router.push('/dashboard');
-    router.refresh(); // Refresh to ensure session state is updated
+    router.refresh(); 
   };
 
-  //
-  // This check prevents rendering the form until the auth state is confirmed.
-  // This is crucial to prevent race conditions on initial load.
-  //
-  if(loading || user) {
-    return null; // Or a loading spinner
+  if(loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+          <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if(user) {
+    return null;
   }
 
   return (

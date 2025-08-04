@@ -33,7 +33,6 @@ export function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // If no plan is selected in the URL, redirect to the plans page.
     if (!planId || !selectedPlan) {
       router.push('/plans');
     }
@@ -44,73 +43,48 @@ export function RegisterForm() {
     setIsLoading(true);
     setError(null);
 
-    // Step 1: Sign up the user with email and password only.
+    // Step 1: Sign up the user with email and password.
+    // The username and referral data is passed in the options.
+    // A trigger in Supabase will handle creating the profile.
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: email,
       password: password,
       options: {
         data: {
           username: username,
+          selected_plan: selectedPlan?.id,
+          referred_by: refId || null,
         }
       }
     });
 
     if (signUpError) {
-      setError(signUpError.message);
+      // Check for specific duplicate username error from the database trigger.
+       if (signUpError.message.includes("Username already exists")) {
+            setError('This username is already taken. Please choose another one.');
+       } else if (signUpError.message.includes("User already registered")) {
+            setError('This email address is already registered. Please sign in.');
+       }
+       else {
+           setError(signUpError.message);
+       }
       setIsLoading(false);
       return;
     }
 
     const user = signUpData.user;
     if (!user) {
-        setError("Could not create user account. Please try again.");
+        setError("Could not create user account. Please check your email for a confirmation link or try again.");
         setIsLoading(false);
         return;
     }
 
-    // Step 2: Manually insert the user's profile into the 'profiles' table.
-    // The status 'pending_investment' is set here.
-    const profileData: {
-        id: string;
-        username: string;
-        selected_plan: string | undefined;
-        referred_by?: string;
-        status: 'pending_investment'
-    } = {
-        id: user.id,
-        username: username,
-        selected_plan: selectedPlan?.id,
-        status: 'pending_investment',
-    };
-    if (refId) {
-        profileData.referred_by = refId;
-    }
-
-    const { error: profileError } = await supabase.from('profiles').insert(profileData);
-
-    if (profileError) {
-        // This is the CRITICAL FIX: Check for the specific duplicate username error.
-        if (profileError.code === '23505' && profileError.message.includes('profiles_username_key')) {
-             setError('This username is already taken. Please choose another one.');
-        } else {
-            setError(`Your account was created, but we failed to set up your profile: ${profileError.message}. Please contact support.`);
-        }
-        
-        // Clean up the created auth user if profile creation fails
-        // In a real production app, you'd call an admin function to delete the orphaned auth user.
-        // For now we just show the error.
-        await supabase.auth.admin.deleteUser(user.id);
-        setIsLoading(false);
-        return;
-    }
-
-    // Step 3: Sign in is automatic after signUp. We can directly redirect.
+    // Step 2: Sign in is automatic after signUp. We can directly redirect.
     toast({
         title: 'Account Created Successfully!',
         description: "You're now being redirected to complete your investment.",
     });
     
-    // The redirect URL no longer needs the refId as it's been saved.
     const investmentUrl = `/invest?plan=${planId}`;
     router.push(investmentUrl);
   };
@@ -165,3 +139,4 @@ export function RegisterForm() {
     </GlowingCard>
   );
 }
+
