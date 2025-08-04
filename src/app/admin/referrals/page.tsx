@@ -1,7 +1,8 @@
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Link as LinkIcon, DollarSign } from "lucide-react";
+import { Users, Link as LinkIcon, DollarSign, Award } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -10,16 +11,46 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { getReferralData } from "./_actions";
+import { useEffect, useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
-// This page will remain with dummy data until the referral logic is fully implemented.
+type ReferralHistory = {
+    id: number;
+    referrerName: string | null;
+    referredName: string | null;
+    bonus_amount: number;
+    created_at: string;
+}
 
-const referralData = [
-    { referrer: "Ali Hassan", referred: "Fatima Jilani", bonus: "200 PKR", date: "2024-07-22" },
-    { referrer: "Sana Mir", referred: "Ahmad Raza", bonus: "200 PKR", date: "2024-07-25" },
-    { referrer: "Aisha Bibi", referred: "Usman Ghani", bonus: "200 PKR", date: "2024-07-15" },
-];
+type ReferralStats = {
+    totalReferrals: number;
+    totalBonusesPaid: number;
+    topReferrer: string;
+}
 
 export default function AdminReferralsPage() {
+    const [stats, setStats] = useState<ReferralStats>({ totalReferrals: 0, totalBonusesPaid: 0, topReferrer: 'N/A' });
+    const [history, setHistory] = useState<ReferralHistory[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            const { data, error } = await getReferralData();
+
+            if (error) {
+                toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch referral data.' });
+            } else if (data) {
+                setStats(data.stats);
+                setHistory(data.history);
+            }
+            setIsLoading(false);
+        }
+        fetchData();
+    }, [toast]);
+
     return (
         <div className="p-4 md:p-8 space-y-8">
             <div>
@@ -34,8 +65,8 @@ export default function AdminReferralsPage() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">0</div>
-                         <p className="text-xs text-muted-foreground">Coming soon</p>
+                        <div className="text-2xl font-bold">{isLoading ? '...' : stats.totalReferrals}</div>
+                         <p className="text-xs text-muted-foreground">Successful new investors</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -44,18 +75,18 @@ export default function AdminReferralsPage() {
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">0 PKR</div>
-                        <p className="text-xs text-muted-foreground">Coming soon</p>
+                        <div className="text-2xl font-bold">{isLoading ? '...' : stats.totalBonusesPaid.toLocaleString()} PKR</div>
+                        <p className="text-xs text-muted-foreground">Paid to referrers</p>
                     </CardContent>
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Top Referrer</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <Award className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">N/A</div>
-                        <p className="text-xs text-muted-foreground">Coming soon</p>
+                        <div className="text-2xl font-bold">{isLoading ? '...' : stats.topReferrer}</div>
+                        <p className="text-xs text-muted-foreground">By number of referrals</p>
                     </CardContent>
                 </Card>
             </div>
@@ -66,9 +97,34 @@ export default function AdminReferralsPage() {
                     <CardDescription>A log of all successful referral connections.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-center text-muted-foreground py-8">
-                        Referral history will be displayed here once the feature is implemented.
-                    </div>
+                    {isLoading ? (
+                        <div className="text-center py-8">Loading referral history...</div>
+                    ) : history.length > 0 ? (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Referrer</TableHead>
+                                    <TableHead>Referred User</TableHead>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead className="text-right">Bonus Paid</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {history.map((item) => (
+                                <TableRow key={item.id}>
+                                    <TableCell className="font-medium">{item.referrerName || 'N/A'}</TableCell>
+                                    <TableCell>{item.referredName || 'N/A'}</TableCell>
+                                    <TableCell>{new Date(item.created_at).toLocaleDateString()}</TableCell>
+                                    <TableCell className="text-right">{item.bonus_amount.toLocaleString()} PKR</TableCell>
+                                </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    ) : (
+                        <div className="text-center text-muted-foreground py-8">
+                            No referral history found.
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>
