@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { useAuth } from "@/hooks/use-auth";
-import type { AuthProfile } from "@/context/AuthProvider";
+import type { AuthProfile } from "@/hooks/use-auth";
 
 const navItems = [
     { href: "/dashboard", icon: Home, label: "Dashboard" },
@@ -39,38 +39,54 @@ export default function DashboardLayout({
   const { user, profile, loading } = useAuth();
   
   useEffect(() => {
+      // Don't run redirect logic until loading is complete
       if (loading) {
-          return; // Wait for authentication and profile to load
+          return;
       }
 
+      // If loading is done, and there's no user, redirect to sign-in
       if (!user) {
           router.replace('/sign-in');
           return;
       }
       
-      // If user exists but profile doesn't, or status is not 'active'
+      // If there is a user, check their profile status for redirects
       if (profile) {
-        if(profile.status === 'pending_approval'){
+        if(profile.status === 'pending_approval' || profile.status === 'pending_investment'){
             router.replace('/approval-pending');
         } else if (profile.status !== 'active') {
+            // This handles cases like 'rejected' or 'inactive'
             router.replace('/plans');
         }
       } else {
-        // No profile found, probably means they haven't chosen a plan
+        // This case can happen briefly if the user is created but profile is not yet.
+        // It's safest to send them to the start of the process.
         router.replace('/plans');
       }
 
   }, [user, profile, loading, router]);
 
 
-  // While loading or redirecting, show a loader
-  if (loading || !profile || profile.status !== 'active') {
+  // Show a loading screen ONLY while the auth state is being determined.
+  if (loading) {
       return (
           <div className="min-h-screen flex items-center justify-center">
               <p>Loading...</p>
           </div>
       );
   }
+
+  // If loading is finished, but the user is not active, `children` will be rendered
+  // while the useEffect above triggers a redirect. This avoids showing a stuck "Loading...".
+  // A null or minimal layout can be returned here to prevent flicker.
+  if (!profile || profile.status !== 'active') {
+    return (
+        <div className="min-h-screen flex items-center justify-center">
+            <p>Loading...</p>
+        </div>
+    );
+  }
+
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
