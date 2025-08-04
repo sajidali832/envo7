@@ -1,7 +1,8 @@
 
-'use client'
+'use client';
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   Bell,
   CircleUser,
@@ -42,10 +43,46 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Do not render the full layout on the login page
   if (pathname === '/admin') {
       return <>{children}</>;
+  }
+
+  useEffect(() => {
+    try {
+        const adminAuth = localStorage.getItem('adminAuthenticated');
+        if (adminAuth === 'true') {
+            setIsAuthenticated(true);
+        } else {
+            router.replace('/admin');
+        }
+    } catch (e) {
+        // localStorage is not available
+        router.replace('/admin');
+    } finally {
+        setIsLoading(false);
+    }
+  }, [pathname, router]);
+
+  const handleLogout = () => {
+      try {
+        localStorage.removeItem('adminAuthenticated');
+      } catch (e) {
+          // ignore error
+      }
+      router.push('/admin');
+  }
+
+  if (isLoading || !isAuthenticated) {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-secondary/30">
+            <p>Loading...</p>
+        </div>
+    );
   }
   
   return (
@@ -117,11 +154,9 @@ export default function AdminLayout({
               <DropdownMenuSeparator />
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <Link href="/admin" className="flex items-center gap-2">
-                    <LogOut className="h-4 w-4" />
-                    <span>Logout</span>
-                </Link>
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                <span>Logout</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

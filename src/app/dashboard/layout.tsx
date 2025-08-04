@@ -1,6 +1,9 @@
 
+'use client';
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   Home,
   Wallet,
@@ -17,6 +20,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
+import { useAuth, type AuthProfile } from "@/context/AuthProvider";
 
 const navItems = [
     { href: "/dashboard", icon: Home, label: "Dashboard" },
@@ -30,6 +34,43 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const { user, profile, loading } = useAuth();
+  
+  useEffect(() => {
+      if (loading) {
+          return; // Wait for authentication and profile to load
+      }
+
+      if (!user) {
+          router.replace('/sign-in');
+          return;
+      }
+      
+      // If user exists but profile doesn't, or status is not 'active'
+      if (profile) {
+        if(profile.status === 'pending_approval'){
+            router.replace('/approval-pending');
+        } else if (profile.status !== 'active') {
+            router.replace('/plans');
+        }
+      } else {
+        // No profile found, probably means they haven't chosen a plan
+        router.replace('/plans');
+      }
+
+  }, [user, profile, loading, router]);
+
+
+  // While loading or redirecting, show a loader
+  if (loading || !profile || profile.status !== 'active') {
+      return (
+          <div className="min-h-screen flex items-center justify-center">
+              <p>Loading...</p>
+          </div>
+      );
+  }
+
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <div className="hidden border-r bg-muted/40 md:block">

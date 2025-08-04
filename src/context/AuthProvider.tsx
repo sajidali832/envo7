@@ -1,46 +1,75 @@
 
 'use client';
 
-import { createContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
+
+export type AuthProfile = {
+    id: string;
+    username: string;
+    status: 'pending_approval' | 'active' | 'inactive' | 'rejected';
+} | null;
 
 type AuthContextType = {
   user: User | null;
   session: Session | null;
+  profile: AuthProfile | null;
   loading: boolean;
 };
 
 export const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
+  profile: null,
   loading: true,
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<AuthProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const fetchProfile = useCallback(async (user: User | null) => {
+    if (user) {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('id, username, status')
+            .eq('id', user.id)
+            .single();
+
+        if (error) {
+            console.error('Error fetching user profile:', error);
+            setProfile(null);
+        } else {
+            setProfile(data as AuthProfile);
+        }
+    } else {
+        setProfile(null);
+    }
+  }, []);
 
   useEffect(() => {
     setLoading(true);
-    //
-    // This getSession() call is the key fix. It actively fetches and validates
-    // the session from Supabase on initial load.
-    //
-    const getSession = async () => {
+    
+    const getInitialSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      await fetchProfile(currentUser);
       setLoading(false);
     };
 
-    getSession();
+    getInitialSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        await fetchProfile(currentUser);
         setLoading(false);
       }
     );
@@ -48,14 +77,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchProfile]);
 
   const value = {
     session,
     user,
+    profile,
     loading,
   };
 
-  // We don't render anything until the initial session load is complete
-  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

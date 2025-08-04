@@ -22,11 +22,16 @@ export default function AdminLoginPage() {
 
     // Simulate network delay
     setTimeout(() => {
-      if (password === 'Sajid092#d') {
+      if (password === 'Admin092#d') {
         toast({
           title: 'Login Successful',
           description: 'Redirecting to dashboard...',
         });
+        try {
+            localStorage.setItem('adminAuthenticated', 'true');
+        } catch (e) {
+            // handle error if localStorage is not available
+        }
         router.push('/admin/dashboard');
       } else {
         toast({
