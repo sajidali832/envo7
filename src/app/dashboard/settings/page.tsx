@@ -1,12 +1,13 @@
 
 'use client';
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Moon, Sun } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function SettingsPage() {
     const { user } = useAuth();
@@ -21,8 +22,18 @@ export default function SettingsPage() {
         <div className="p-4 md:p-8 space-y-8">
             <div>
                 <h1 className="text-2xl font-bold">Settings</h1>
-                <p className="text-muted-foreground">Manage your account and log out.</p>
+                <p className="text-muted-foreground">Manage your account, preferences, and log out.</p>
             </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">Display Mode</CardTitle>
+                    <CardDescription>Choose between light and dark themes for your dashboard.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ThemeToggle />
+                </CardContent>
+            </Card>
 
             <Card>
                 <CardHeader>
