@@ -115,7 +115,7 @@ export async function updateInvestmentStatus(investment: Investment, newStatus: 
 
         // Handle referral bonus if applicable
         if (investment.profiles?.referred_by) {
-            const referralBonus = 200;
+            const referralBonus = 600; // Updated referral bonus
 
             // Fetch referrer's profile
             const { data: referrerProfile, error: referrerFetchError } = await supabaseAdmin

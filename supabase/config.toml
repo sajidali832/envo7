@@ -1,0 +1,14 @@
+# Supabase Project Configuration
+
+# This file is used to configure your Supabase project.
+# It's a single source of truth for your project's configuration.
+#
+# For a full list of options, see the documentation:
+# https://supabase.com/docs/reference/cli/config
+
+[db]
+major_version = 15
+
+[functions]
+  [functions.daily-earnings]
+    schedule = "0 0 * * *"

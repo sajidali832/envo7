@@ -37,7 +37,7 @@ export function PlansClientPage({ plans, referrerName, refId }: PlansClientPageP
                   <Gift className="h-5 w-5 !text-green-600" />
                   <AlertTitle>Referral Bonus!</AlertTitle>
                   <AlertDescription>
-                    You were referred by <span className="font-bold">{referrerName}</span>. You will receive a 200 PKR bonus if you select any plan.
+                    You were referred by <span className="font-bold">{referrerName}</span>. A bonus of 600 PKR will be awarded to them when you invest!
                   </AlertDescription>
                 </Alert>
             )}

@@ -88,7 +88,7 @@ export default function ReferralsPage() {
                     <CardTitle className="flex items-center gap-2"><Gift /> Earn Big with Referrals!</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-4xl font-bold">200 PKR</p>
+                    <p className="text-4xl font-bold">600 PKR</p>
                     <p className="text-primary-foreground/80">For every friend who registers and invests with your link.</p>
                 </CardContent>
             </Card>

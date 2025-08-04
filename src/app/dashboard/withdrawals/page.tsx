@@ -46,6 +46,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Alert, AlertTitle } from "@/components/ui/alert";
 
 
 type WithdrawalMethod = {
@@ -94,6 +95,7 @@ export default function WithdrawalsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [withdrawalMethod, setWithdrawalMethod] = useState<WithdrawalMethod | null>(null);
     const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalHistory[]>([]);
+    const [hasPendingWithdrawal, setHasPendingWithdrawal] = useState(false);
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [method, setMethod] = useState('easypaisa');
@@ -126,7 +128,11 @@ export default function WithdrawalsPage() {
                 setWithdrawalMethod(null);
             }
 
-            if (historyRes.data) setWithdrawalHistory(historyRes.data);
+            if (historyRes.data) {
+                setWithdrawalHistory(historyRes.data);
+                const pending = historyRes.data.some(w => w.status === 'processing');
+                setHasPendingWithdrawal(pending);
+            }
 
             if (profileRes.error || methodRes.error || historyRes.error) {
                  console.error("Error fetching withdrawal data:", profileRes.error || methodRes.error || historyRes.error);
@@ -206,6 +212,10 @@ export default function WithdrawalsPage() {
         const rules = planRules[userProfile.selected_plan];
         
         // --- Validation Logic ---
+        if (hasPendingWithdrawal) {
+             toast({ variant: 'destructive', title: "Pending Request", description: "You already have a withdrawal request being processed."});
+             return;
+        }
         if (isNaN(amount) || amount <= 0) {
             toast({ variant: 'destructive', title: "Invalid Amount", description: "Please enter a valid amount."});
             return;
@@ -371,7 +381,13 @@ export default function WithdrawalsPage() {
                         <CardDescription>Enter the amount you wish to withdraw.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                         {withdrawalMethod ? (
+                         {hasPendingWithdrawal ? (
+                            <Alert variant="destructive">
+                                <Clock className="h-4 w-4" />
+                                <AlertTitle>Request Pending</AlertTitle>
+                                <p className="text-xs">You have a withdrawal request currently being processed. Please wait for it to complete before submitting another.</p>
+                            </Alert>
+                         ) : withdrawalMethod ? (
                             <>
                                 <p className="text-sm text-muted-foreground">Available Balance: <span className="font-bold text-primary">{userProfile?.balance.toLocaleString() ?? '0'} PKR</span></p>
                                 <div className="flex gap-2">
@@ -380,11 +396,11 @@ export default function WithdrawalsPage() {
                                         placeholder="Amount in PKR"
                                         value={withdrawalAmount}
                                         onChange={e => setWithdrawalAmount(e.target.value)}
-                                        disabled={isSubmitting || isLoading}
+                                        disabled={isSubmitting || isLoading || hasPendingWithdrawal}
                                     />
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <Button disabled={!withdrawalAmount || isSubmitting || isLoading}>Request</Button>
+                                            <Button disabled={!withdrawalAmount || isSubmitting || isLoading || hasPendingWithdrawal}>Request</Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
