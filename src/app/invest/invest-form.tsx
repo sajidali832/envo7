@@ -45,26 +45,15 @@ export function InvestForm() {
 
   const handleSubmitForApproval = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!screenshotFile || !selectedPlan) {
+    if (!screenshotFile || !selectedPlan || !user) {
         toast({
             variant: 'destructive',
             title: 'Missing Information',
-            description: 'Please upload a screenshot of your payment.',
+            description: 'Please ensure you are logged in and have uploaded a screenshot.',
         });
         return;
     }
     setIsLoading(true);
-
-    if (!user) {
-        toast({
-            variant: 'destructive',
-            title: 'Not authenticated',
-            description: 'You need to be logged in to submit an investment.',
-        });
-        setIsLoading(false);
-        router.push('/sign-in');
-        return;
-    }
 
     // 1. Upload screenshot
     const fileExt = screenshotFile.name.split('.').pop();
@@ -86,7 +75,7 @@ export function InvestForm() {
         user_id: user.id,
         plan_id: selectedPlan.id,
         amount: selectedPlan.price,
-        status: 'pending',
+        status: 'pending', // This status is for the investment itself
         proof_screenshot_url: publicUrl,
         user_account_holder_name: holderName,
         user_account_number: accountNumber
@@ -94,6 +83,20 @@ export function InvestForm() {
 
     if (insertError) {
         toast({ variant: 'destructive', title: 'Submission Failed', description: insertError.message });
+        // Optional: Clean up uploaded file if DB insert fails
+        await supabase.storage.from('proofs').remove([filePath]);
+        setIsLoading(false);
+        return;
+    }
+
+    // 4. Update the user's profile status to 'pending_approval'
+    const { error: profileUpdateError } = await supabase
+      .from('profiles')
+      .update({ status: 'pending_approval' })
+      .eq('id', user.id);
+
+    if (profileUpdateError) {
+        toast({ variant: 'destructive', title: 'Status Update Failed', description: profileUpdateError.message });
         setIsLoading(false);
         return;
     }

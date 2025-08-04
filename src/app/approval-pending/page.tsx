@@ -9,12 +9,12 @@ import { Hourglass, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
 
-type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+type ApprovalStatus = 'pending_approval' | 'active' | 'rejected' | 'pending_investment';
 
 export default function ApprovalPendingPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
-  const [status, setStatus] = useState<ApprovalStatus>('pending');
+  const { user, profile, loading: authLoading } = useAuth();
+  const [status, setStatus] = useState<ApprovalStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,75 +23,80 @@ export default function ApprovalPendingPage() {
         router.push('/sign-in');
         return;
     }
-
-    let channel: any;
-    let timeoutId: NodeJS.Timeout;
-
-    const checkStatus = async () => {
-        if (!user) return;
-        
-        const { data: investment, error } = await supabase
-            .from('investments')
-            .select('status')
-            .eq('user_id', user.id)
-            .order('submitted_at', { ascending: false })
-            .limit(1)
-            .single();
-
-        if (error) {
-            // This can happen if no investment record is found, which is okay.
-            // It means the user might not belong here. Redirect them.
-            if (error.code !== 'PGRST116') { // PGRST116 = "exact one row not returned"
-                 console.error('Error fetching investment status:', error);
-            }
-            router.push('/dashboard');
-            return;
-        }
-        
-        const currentStatus = investment.status as ApprovalStatus;
-        setStatus(currentStatus);
-        setLoading(false);
-
-        if (currentStatus === 'approved') {
-            timeoutId = setTimeout(() => router.push('/dashboard'), 3000);
-        }
-    };
     
-    checkStatus();
-
-    // Set up a realtime subscription
-    channel = supabase.channel(`public:investments:user_id=eq.${user.id}`)
-        .on('postgres_changes', 
-        { event: 'UPDATE', schema: 'public', table: 'investments', filter: `user_id=eq.${user.id}` }, 
-        (payload) => {
-            const newStatus = payload.new.status as ApprovalStatus;
-            setStatus(newStatus);
-            if (newStatus === 'approved') {
-                timeoutId = setTimeout(() => router.push('/dashboard'), 3000);
+    // Use the profile from the auth context if available
+    if (profile) {
+      const currentStatus = profile.status as ApprovalStatus;
+      setStatus(currentStatus);
+      setLoading(false);
+      if (currentStatus === 'active') {
+        setTimeout(() => router.push('/dashboard'), 3000);
+      }
+    } else {
+        // Fallback to fetch if profile is not in context yet.
+        const checkStatus = async () => {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('status')
+                .eq('id', user.id)
+                .single();
+            
+            if (error || !data) {
+                console.error("Could not fetch user status, redirecting.", error);
+                router.push('/plans');
+                return;
             }
+            
+            const fetchedStatus = data.status as ApprovalStatus;
+            setStatus(fetchedStatus);
+            setLoading(false);
+            if (fetchedStatus === 'active') {
+                setTimeout(() => router.push('/dashboard'), 3000);
+            }
+        };
+        checkStatus();
+    }
+    
+    // Set up a realtime subscription to the user's profile
+    const channel = supabase
+      .channel(`profile-status:${user.id}`)
+      .on<any>(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newStatus = payload.new.status as ApprovalStatus;
+          setStatus(newStatus);
+          if (newStatus === 'active') {
+            setTimeout(() => router.push('/dashboard'), 3000);
+          }
         }
-    ).subscribe();
+      )
+      .subscribe();
 
     return () => {
-      if (channel) supabase.removeChannel(channel);
-      if (timeoutId) clearTimeout(timeoutId);
+      supabase.removeChannel(channel);
     };
-  }, [user, authLoading, router]);
+  }, [user, profile, authLoading, router]);
 
   const renderContent = () => {
-    if (loading || authLoading) {
+    if (loading || authLoading || status === null) {
       return {
           icon: <Hourglass className="h-8 w-8 animate-spin" />,
           bgColor: 'bg-secondary/10 text-secondary-foreground',
           title: "Checking Status...",
-          description: "Please wait while we fetch your application details.",
+          description: "Please wait while we check your application status.",
           content: <div className="h-8 w-1/2 bg-muted rounded animate-pulse mx-auto" />,
           footer: <p className="text-xs text-muted-foreground text-center">Loading...</p>
         };
     }
 
     switch (status) {
-      case 'approved':
+      case 'active':
         return {
           icon: <CheckCircle className="h-8 w-8" />,
           bgColor: 'bg-green-100 text-green-700',
@@ -117,7 +122,7 @@ export default function ApprovalPendingPage() {
             </Button>
           )
         };
-      case 'pending':
+      case 'pending_approval':
       default:
         return {
           icon: <Hourglass className="h-8 w-8 animate-spin" />,

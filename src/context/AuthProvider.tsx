@@ -8,7 +8,7 @@ import type { Session, User } from '@supabase/supabase-js';
 export type AuthProfile = {
     id: string;
     username: string;
-    status: 'pending_approval' | 'active' | 'inactive' | 'rejected';
+    status: 'pending_investment' | 'pending_approval' | 'active' | 'inactive' | 'rejected';
 } | null;
 
 type AuthContextType = {
@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .eq('id', user.id)
             .single();
 
-        if (error) {
+        if (error && error.code !== 'PGRST116') { // PGRST116 = row not found, which is ok
             console.error('Error fetching user profile:', error);
             setProfile(null);
         } else {
@@ -51,9 +51,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    
     const getInitialSession = async () => {
+      setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       const currentUser = session?.user ?? null;
@@ -66,6 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        setLoading(true);
         setSession(session);
         const currentUser = session?.user ?? null;
         setUser(currentUser);

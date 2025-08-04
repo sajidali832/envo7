@@ -48,6 +48,11 @@ export function RegisterForm() {
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: email,
       password: password,
+      options: {
+        data: {
+          username: username,
+        }
+      }
     });
 
     if (signUpError) {
@@ -64,15 +69,18 @@ export function RegisterForm() {
     }
 
     // Step 2: Manually insert the user's profile into the 'profiles' table.
+    // The status 'pending_investment' is set here.
     const profileData: {
         id: string;
         username: string;
         selected_plan: string | undefined;
         referred_by?: string;
+        status: 'pending_investment'
     } = {
         id: user.id,
         username: username,
         selected_plan: selectedPlan?.id,
+        status: 'pending_investment',
     };
     if (refId) {
         profileData.referred_by = refId;
@@ -89,29 +97,22 @@ export function RegisterForm() {
         }
         
         // Clean up the created auth user if profile creation fails
-        // This is an advanced step, for now we will just show the error.
         // In a real production app, you'd call an admin function to delete the orphaned auth user.
+        // For now we just show the error.
+        await supabase.auth.admin.deleteUser(user.id);
         setIsLoading(false);
         return;
     }
 
-    // Step 3: Sign in the user to create a session, then redirect.
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+    // Step 3: Sign in is automatic after signUp. We can directly redirect.
+    toast({
+        title: 'Account Created Successfully!',
+        description: "You're now being redirected to complete your investment.",
     });
-
-    if (signInError) {
-         setError(`Registration successful, but login failed: ${signInError.message}`);
-         setIsLoading(false);
-    } else {
-        toast({
-            title: 'Account Created Successfully!',
-            description: "You're now being redirected to complete your investment.",
-        });
-        const investmentUrl = refId ? `/invest?plan=${planId}&ref=${refId}` : `/invest?plan=${planId}`;
-        router.push(investmentUrl);
-    }
+    
+    // The redirect URL no longer needs the refId as it's been saved.
+    const investmentUrl = `/invest?plan=${planId}`;
+    router.push(investmentUrl);
   };
   
   if (!selectedPlan) {
