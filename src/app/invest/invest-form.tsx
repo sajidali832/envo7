@@ -55,59 +55,62 @@ export function InvestForm() {
     }
     setIsLoading(true);
 
-    // 1. Upload screenshot
-    const fileExt = screenshotFile.name.split('.').pop();
-    const fileName = `${uuidv4()}.${fileExt}`;
-    const filePath = `${user.id}/${fileName}`;
-    const { error: uploadError } = await supabase.storage.from('proofs').upload(filePath, screenshotFile);
+    try {
+        // 1. Upload screenshot
+        const fileExt = screenshotFile.name.split('.').pop();
+        const fileName = `${uuidv4()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+        const { error: uploadError } = await supabase.storage.from('proofs').upload(filePath, screenshotFile);
 
-    if (uploadError) {
-        toast({ variant: 'destructive', title: 'Upload Failed', description: uploadError.message });
+        if (uploadError) {
+            throw new Error(`Upload Failed: ${uploadError.message}`);
+        }
+
+        // 2. Get public URL
+        const { data: urlData } = supabase.storage.from('proofs').getPublicUrl(filePath);
+
+        if (!urlData || !urlData.publicUrl) {
+            throw new Error("Upload Failed: Could not get the public URL for the uploaded file.");
+        }
+
+        // 3. Insert investment record
+        const { error: insertError } = await supabase.from('investments').insert({
+            user_id: user.id,
+            plan_id: selectedPlan.id,
+            amount: selectedPlan.price,
+            status: 'pending', 
+            proof_screenshot_url: urlData.publicUrl,
+            user_account_holder_name: holderName,
+            user_account_number: accountNumber
+        });
+
+        if (insertError) {
+            // If insert fails, try to remove the orphaned screenshot
+            await supabase.storage.from('proofs').remove([filePath]);
+            throw new Error(`Submission Failed: ${insertError.message}`);
+        }
+
+        // 4. Update the user's profile status to 'pending_approval'
+        const { error: profileUpdateError } = await supabase
+          .from('profiles')
+          .update({ status: 'pending_approval' })
+          .eq('id', user.id);
+
+        if (profileUpdateError) {
+            // This is a critical error, but the main submission succeeded.
+            // We should still log it, but proceed with redirecting the user.
+            console.error('Failed to update user status:', profileUpdateError.message);
+            toast({ variant: 'destructive', title: 'Status Update Failed', description: "Your submission was received, but we couldn't update your status. Please contact support." });
+        }
+
+        // 5. Redirect to pending page
+        router.push('/approval-pending');
+
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        toast({ variant: 'destructive', title: 'Error', description: errorMessage });
         setIsLoading(false);
-        return;
     }
-
-    // 2. Get public URL
-    const { data: urlData } = supabase.storage.from('proofs').getPublicUrl(filePath);
-
-    if (!urlData || !urlData.publicUrl) {
-        toast({ variant: 'destructive', title: 'Upload Failed', description: "Could not get the public URL for the uploaded file." });
-        setIsLoading(false);
-        return;
-    }
-
-    // 3. Insert investment record
-    const { error: insertError } = await supabase.from('investments').insert({
-        user_id: user.id,
-        plan_id: selectedPlan.id,
-        amount: selectedPlan.price,
-        status: 'pending', 
-        proof_screenshot_url: urlData.publicUrl,
-        user_account_holder_name: holderName,
-        user_account_number: accountNumber
-    });
-
-    if (insertError) {
-        toast({ variant: 'destructive', title: 'Submission Failed', description: insertError.message });
-        await supabase.storage.from('proofs').remove([filePath]);
-        setIsLoading(false);
-        return;
-    }
-
-    // 4. Update the user's profile status to 'pending_approval'
-    const { error: profileUpdateError } = await supabase
-      .from('profiles')
-      .update({ status: 'pending_approval' })
-      .eq('id', user.id);
-
-    if (profileUpdateError) {
-        // This is a critical error, but the main submission succeeded.
-        // We log it and proceed, as the admin can still see the approval.
-        console.error('Failed to update user status:', profileUpdateError.message);
-        toast({ variant: 'destructive', title: 'Status Update Failed', description: "Your submission was received, but we couldn't update your status. Please contact support." });
-    }
-
-    router.push('/approval-pending');
   };
 
   if (!selectedPlan) {
