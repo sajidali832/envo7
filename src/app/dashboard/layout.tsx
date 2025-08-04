@@ -20,7 +20,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
-import { useAuth, type AuthProfile } from "@/context/AuthProvider";
+import { useAuth } from "@/hooks/use-auth";
+import type { AuthProfile } from "@/context/AuthProvider";
 
 const navItems = [
     { href: "/dashboard", icon: Home, label: "Dashboard" },
