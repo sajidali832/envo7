@@ -101,9 +101,10 @@ export function InvestForm() {
       .eq('id', user.id);
 
     if (profileUpdateError) {
-        toast({ variant: 'destructive', title: 'Status Update Failed', description: profileUpdateError.message });
-        setIsLoading(false);
-        return;
+        // This is a critical error, but the main submission succeeded.
+        // We log it and proceed, as the admin can still see the approval.
+        console.error('Failed to update user status:', profileUpdateError.message);
+        toast({ variant: 'destructive', title: 'Status Update Failed', description: "Your submission was received, but we couldn't update your status. Please contact support." });
     }
 
     router.push('/approval-pending');

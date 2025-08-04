@@ -56,19 +56,15 @@ export default function SignInPage() {
       description: 'Welcome back.',
     });
     router.push('/dashboard');
-    router.refresh(); 
+    // router.refresh() is not needed here as the AuthProvider will trigger a re-render.
   };
 
-  if(loading) {
+  if (loading || user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
           <p>Loading...</p>
       </div>
     );
-  }
-
-  if(user) {
-    return null;
   }
 
   return (

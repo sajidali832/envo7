@@ -13,54 +13,46 @@ import { PlansSection } from '@/components/landing/plans-preview';
 import { Separator } from '@/components/ui/separator';
 
 export default function Home() {
-  const { user, profile, loading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(true);
 
   useEffect(() => {
-    // Wait until the authentication status is determined
-    if (loading) {
-      return; 
-    }
-
-    if (user && profile) {
-      // If user is logged in, decide where to redirect
-      if (profile.status === 'active') {
+    // We only want to redirect if the user is logged in and their status is determined.
+    if (!loading) {
+      if (user) {
+        // If the user is logged in, they should be on the dashboard.
+        // The dashboard layout will handle the logic for different statuses.
         router.replace('/dashboard');
-      } else if (profile.status === 'pending_approval' || profile.status === 'pending_investment') {
-        router.replace('/approval-pending');
       } else {
-        // If status is something else (e.g. inactive), let them stay or redirect to plans
+        // If there's no user, we're on the landing page, so stop redirecting.
         setIsRedirecting(false);
       }
-    } else {
-      // If no user is logged in, stop the loading state and show the landing page
-      setIsRedirecting(false);
     }
-  }, [user, profile, loading, router]);
+  }, [user, loading, router]);
 
 
-  // Show a loading screen only while we are determining auth status or redirecting.
-  if (loading || isRedirecting) {
-     return (
-        <div className="min-h-screen flex items-center justify-center">
-            <p>Loading...</p>
-        </div>
+  // If there's no user and we're not loading, show the landing page.
+  if (!loading && !user) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-grow">
+          <HeroSection />
+          <AboutSection />
+          <Separator className="my-12" />
+          <PlansSection />
+          <ReviewsSection />
+        </main>      
+        <Footer />
+      </div>
     );
   }
 
-  // If we are not redirecting, it means no user is logged in, so show the landing page.
+  // Otherwise, show a loading screen while we determine the user's state and redirect.
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header />
-      <main className="flex-grow">
-        <HeroSection />
-        <AboutSection />
-        <Separator className="my-12" />
-        <PlansSection />
-        <ReviewsSection />
-      </main>      
-      <Footer />
+    <div className="min-h-screen flex items-center justify-center">
+        <p>Loading...</p>
     </div>
   );
 }

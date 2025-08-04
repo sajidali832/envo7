@@ -2,8 +2,8 @@
 'use client';
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import {
   Home,
   Wallet,
@@ -21,7 +21,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { useAuth } from "@/hooks/use-auth";
-import type { AuthProfile } from "@/hooks/use-auth";
 
 const navItems = [
     { href: "/dashboard", icon: Home, label: "Dashboard" },
@@ -52,16 +51,16 @@ export default function DashboardLayout({
       
       // If there is a user, check their profile status for redirects
       if (profile) {
-        if(profile.status === 'pending_approval' || profile.status === 'pending_investment'){
+        if (profile.status === 'pending_approval' || profile.status === 'pending_investment') {
             router.replace('/approval-pending');
         } else if (profile.status !== 'active') {
             // This handles cases like 'rejected' or 'inactive'
             router.replace('/plans');
         }
       } else {
-        // This case can happen briefly if the user is created but profile is not yet.
-        // It's safest to send them to the start of the process.
-        router.replace('/plans');
+        // This can happen briefly if the user is created but profile is not yet.
+        // It's safest to send them to the start of the process, or sign-in.
+        router.replace('/sign-in');
       }
 
   }, [user, profile, loading, router]);
@@ -76,13 +75,13 @@ export default function DashboardLayout({
       );
   }
 
-  // If loading is finished, but the user is not active, `children` will be rendered
-  // while the useEffect above triggers a redirect. This avoids showing a stuck "Loading...".
-  // A null or minimal layout can be returned here to prevent flicker.
+  // If loading is finished, but the user is not active, `children` will not be rendered.
+  // The useEffect above will have already triggered a redirect.
+  // We can return a loading state here to prevent flicker during redirect.
   if (!profile || profile.status !== 'active') {
     return (
         <div className="min-h-screen flex items-center justify-center">
-            <p>Loading...</p>
+            <p>Redirecting...</p>
         </div>
     );
   }
