@@ -47,24 +47,26 @@ export default function AdminLayout({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Do not render the full layout on the login page
-  if (pathname === '/admin') {
-      return <>{children}</>;
-  }
-
   useEffect(() => {
-    try {
-        const adminAuth = localStorage.getItem('adminAuthenticated');
-        if (adminAuth === 'true') {
-            setIsAuthenticated(true);
-        } else {
+    // This effect now runs on all renders, satisfying the Rules of Hooks.
+    // We only proceed with the logic if we are not on the login page.
+    if (pathname !== '/admin') {
+        try {
+            const adminAuth = localStorage.getItem('adminAuthenticated');
+            if (adminAuth === 'true') {
+                setIsAuthenticated(true);
+            } else {
+                router.replace('/admin');
+            }
+        } catch (e) {
             router.replace('/admin');
+        } finally {
+            setIsLoading(false);
         }
-    } catch (e) {
-        // localStorage is not available
-        router.replace('/admin');
-    } finally {
+    } else {
+        // If we are on the login page, we are not loading and not authenticated.
         setIsLoading(false);
+        setIsAuthenticated(false);
     }
   }, [pathname, router]);
 
@@ -75,6 +77,11 @@ export default function AdminLayout({
           // ignore error
       }
       router.push('/admin');
+  }
+
+  // The conditional return is now placed AFTER all hooks have been called.
+  if (pathname === '/admin') {
+      return <>{children}</>;
   }
 
   if (isLoading || !isAuthenticated) {
