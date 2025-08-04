@@ -44,25 +44,21 @@ export function RegisterForm() {
     setError(null);
 
     // Step 1: Sign up the user with email and password.
-    // The username and referral data is passed in the options.
-    // A trigger in Supabase will handle creating the profile.
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: email,
       password: password,
       options: {
+        // This data is for auth schema, not public profiles.
+        // We will create the profile manually after success.
         data: {
-          username: username,
-          selected_plan: selectedPlan?.id,
-          referred_by: refId || null,
+            username: username,
         }
       }
     });
-
+    
     if (signUpError) {
-      // Check for specific duplicate username error from the database trigger.
-       if (signUpError.message.includes("Username already exists")) {
-            setError('This username is already taken. Please choose another one.');
-       } else if (signUpError.message.includes("User already registered")) {
+       // Check for specific duplicate username error from the database trigger.
+       if (signUpError.message.includes("User already registered")) {
             setError('This email address is already registered. Please sign in.');
        }
        else {
@@ -71,7 +67,7 @@ export function RegisterForm() {
       setIsLoading(false);
       return;
     }
-
+    
     const user = signUpData.user;
     if (!user) {
         setError("Could not create user account. Please check your email for a confirmation link or try again.");
@@ -79,7 +75,32 @@ export function RegisterForm() {
         return;
     }
 
-    // Step 2: Sign in is automatic after signUp. We can directly redirect.
+    // Step 2: Manually create the public profile for the new user.
+    // This ensures the profile exists before they get to the investment page.
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: user.id,
+        username: username,
+        selected_plan: selectedPlan?.id,
+        referred_by: refId || null,
+        status: 'pending_investment' // New initial status
+      });
+      
+    if (profileError) {
+        // This is a critical error. The user exists in auth but not in profiles.
+        // We should inform the user and maybe try to clean up the auth user.
+        setError(`Failed to create your profile: ${profileError.message}. Please contact support.`);
+        // Attempt to delete the orphaned auth user
+        // You might need a server-side function for this in a real app for security.
+        await supabase.auth.signOut(); // Sign out first
+        // As an admin/service_role you could delete here, but not on client.
+        console.error("CRITICAL: Auth user created but profile insertion failed.", user.id);
+        setIsLoading(false);
+        return;
+    }
+    
+    // Step 3: Registration and profile creation are successful. Redirect to invest.
     toast({
         title: 'Account Created Successfully!',
         description: "You're now being redirected to complete your investment.",
