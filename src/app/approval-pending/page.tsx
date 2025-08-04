@@ -30,7 +30,8 @@ export default function ApprovalPendingPage() {
       setStatus(currentStatus);
       setLoading(false);
       if (currentStatus === 'active') {
-        setTimeout(() => router.push('/dashboard'), 3000);
+        router.replace('/dashboard');
+        return;
       }
     } else {
         // Fallback to fetch if profile is not in context yet.
@@ -51,7 +52,8 @@ export default function ApprovalPendingPage() {
             setStatus(fetchedStatus);
             setLoading(false);
             if (fetchedStatus === 'active') {
-                setTimeout(() => router.push('/dashboard'), 3000);
+                router.replace('/dashboard');
+                return;
             }
         };
         checkStatus();
@@ -72,7 +74,7 @@ export default function ApprovalPendingPage() {
           const newStatus = payload.new.status as ApprovalStatus;
           setStatus(newStatus);
           if (newStatus === 'active') {
-            setTimeout(() => router.push('/dashboard'), 3000);
+            router.push('/dashboard');
           }
         }
       )

@@ -43,14 +43,19 @@ export default function DashboardLayout({
           return;
       }
 
-      // If loading is done, and there's no user, or user is not active, redirect.
-      // The main page.tsx handles the initial redirect, this is a safeguard.
+      // If loading is done, and there's no user, redirect to sign-in.
       if (!user) {
           router.replace('/sign-in');
           return;
       }
       
-      if (profile && profile.status !== 'active') {
+      // If there's a user but no profile yet, wait.
+      if (!profile) {
+        return;
+      }
+
+      // If profile exists, check status.
+      if (profile.status !== 'active') {
         if (profile.status === 'pending_approval' || profile.status === 'pending_investment') {
             router.replace('/approval-pending');
         } else {
@@ -71,13 +76,12 @@ export default function DashboardLayout({
       );
   }
 
-  // If loading is finished, but the user is not active, `children` will not be rendered.
-  // The useEffect above will have already triggered a redirect.
-  // We can return a loading state here to prevent flicker during redirect.
+  // If after loading, the user is not active, show a placeholder while redirecting.
+  // This prevents rendering children that might throw errors.
   if (!profile || profile.status !== 'active') {
     return (
         <div className="min-h-screen flex items-center justify-center">
-            <p>Redirecting...</p>
+            <p>Checking status...</p>
         </div>
     );
   }
