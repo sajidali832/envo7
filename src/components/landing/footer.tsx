@@ -8,7 +8,7 @@ export function Footer() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
           <Logo />
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} Envo-Lite. All rights reserved.
+            &copy; {new Date().getFullYear()} Envo-Pro. All rights reserved.
           </p>
           <div className="flex gap-4">
             <Link href="/terms" className="text-sm text-muted-foreground hover:text-primary">Terms of Service</Link>

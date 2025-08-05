@@ -119,7 +119,7 @@ export function RegisterForm() {
       <form onSubmit={handleRegister}>
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Create an Account</CardTitle>
-          <CardDescription>Join Envo-Lite and start your investment journey.</CardDescription>
+          <CardDescription>Join Envo-Pro and start your investment journey.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {selectedPlan && (
@@ -160,4 +160,3 @@ export function RegisterForm() {
     </GlowingCard>
   );
 }
-

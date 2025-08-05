@@ -5,7 +5,7 @@ import { Star } from 'lucide-react';
 const reviews = [
   { name: 'Ayesha Khan', city: 'Karachi', review: 'Amazing platform! I doubled my investment in just a few weeks. Highly recommended!', avatar: 'https://placehold.co/64x64.png' },
   { name: 'Bilal Ahmed', city: 'Lahore', review: 'The referral bonuses are a great way to earn extra income. The system is transparent and easy to use.', avatar: 'https://placehold.co/64x64.png' },
-  { name: 'Fatima Ali', city: 'Islamabad', review: 'I was hesitant at first, but Envo-Lite proved to be a trustworthy platform. Withdrawals are processed quickly.', avatar: 'https://placehold.co/64x64.png' },
+  { name: 'Fatima Ali', city: 'Islamabad', review: 'I was hesitant at first, but Envo-Pro proved to be a trustworthy platform. Withdrawals are processed quickly.', avatar: 'https://placehold.co/64x64.png' },
   { name: 'Saad Malik', city: 'Rawalpindi', review: 'Excellent customer support and a very professional interface. Feels like a premium service.', avatar: 'https://placehold.co/64x64.png' },
   { name: 'Hina Iqbal', city: 'Faisalabad', review: 'The daily earnings are credited on time every day. It\'s a reliable way to grow your savings.', avatar: 'https://placehold.co/64x64.png' },
   { name: 'Usman Butt', city: 'Multan', review: 'I have referred many friends and the bonuses are fantastic. Best investment app in Pakistan!', avatar: 'https://placehold.co/64x64.png' },

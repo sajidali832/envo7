@@ -22,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <title>Envo-Lite – Investment & Referral Platform</title>
+        <title>Envo-Pro – Investment & Referral Platform</title>
         <meta name="description" content="A premium investment and referral platform for discerning users in Pakistan." />
       </head>
       <body className={`${ptSans.variable} font-body antialiased`}>

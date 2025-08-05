@@ -24,7 +24,7 @@ export function AboutSection() {
     <section className="py-16 md:py-24">
       <div className="container px-4">
         <div className="text-center max-w-3xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Why Choose Envo-Lite?</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Why Choose Envo-Pro?</h2>
           <p className="text-base md:text-lg text-muted-foreground mb-10">
             We are dedicated to providing a premium investment experience, combining profitability with a user-friendly platform designed for the ambitious individual.
           </p>

@@ -22,7 +22,7 @@ export default function AdminSettingsPage() {
                 <CardContent className="space-y-4">
                     <div className="flex items-center justify-between border-b pb-2">
                         <span className="text-muted-foreground">Email</span>
-                        <span className="font-semibold">admin@envo-lite.app</span>
+                        <span className="font-semibold">admin@envo-pro.app</span>
                     </div>
                 </CardContent>
             </Card>

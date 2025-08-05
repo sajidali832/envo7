@@ -20,7 +20,7 @@ export function Logo({ className }: { className?: string }) {
           <path d="m9 12 2 2 4-4" />
         </svg>
       </div>
-      <span className="text-2xl font-bold tracking-tight text-foreground">Envo-Lite</span>
+      <span className="text-2xl font-bold tracking-tight text-foreground">Envo-Pro</span>
     </Link>
   )
 }
