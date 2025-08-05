@@ -2,11 +2,10 @@
 'use client';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, User, Moon, Sun } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function SettingsPage() {
@@ -19,7 +18,7 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="p-4 md:p-8 space-y-8">
+        <div className="p-4 md:p-8 space-y-6">
             <div>
                 <h1 className="text-2xl font-bold">Settings</h1>
                 <p className="text-muted-foreground">Manage your account, preferences, and log out.</p>
@@ -41,9 +40,9 @@ export default function SettingsPage() {
                     <CardDescription>Your registered account details.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between border-b pb-2">
-                        <span className="text-muted-foreground">Email</span>
-                        <span className="font-semibold">{user?.email || 'Loading...'}</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b pb-2 gap-2">
+                        <span className="text-muted-foreground text-sm">Email</span>
+                        <span className="font-semibold break-all">{user?.email || 'Loading...'}</span>
                     </div>
                 </CardContent>
             </Card>

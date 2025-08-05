@@ -2,7 +2,7 @@
 'use client';
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import {
   Home,
@@ -35,39 +35,33 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, profile, loading } = useAuth();
   
   useEffect(() => {
-      // Don't run redirect logic until loading is complete
       if (loading) {
           return;
       }
 
-      // If loading is done, and there's no user, redirect to sign-in.
       if (!user) {
           router.replace('/sign-in');
           return;
       }
       
-      // If there's a user but no profile yet, wait.
       if (!profile) {
         return;
       }
 
-      // If profile exists, check status.
       if (profile.status !== 'active') {
         if (profile.status === 'pending_approval' || profile.status === 'pending_investment') {
             router.replace('/approval-pending');
         } else {
-            // Handles cases like 'rejected' or 'inactive'
             router.replace('/plans');
         }
       }
-
   }, [user, profile, loading, router]);
 
 
-  // Show a loading screen ONLY while the auth state is being determined.
   if (loading) {
       return (
           <div className="min-h-screen flex items-center justify-center">
@@ -76,9 +70,7 @@ export default function DashboardLayout({
       );
   }
 
-  // If after loading, the user is not active, show a placeholder while redirecting.
-  // This prevents rendering children that might throw errors.
-  if (!profile || profile.status !== 'active') {
+  if (!user || !profile || profile.status !== 'active') {
     return (
         <div className="min-h-screen flex items-center justify-center">
             <p>Checking status...</p>
@@ -86,12 +78,22 @@ export default function DashboardLayout({
     );
   }
 
+  const getNavItemClass = (href: string) => {
+    const isActive = pathname === href;
+    return `flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary ${isActive ? 'bg-primary/10 text-primary' : ''}`;
+  }
+
+  const getMobileNavItemClass = (href: string) => {
+    const isActive = pathname === href;
+    return `flex flex-col items-center gap-1 text-muted-foreground hover:text-primary transition-all ${isActive ? 'text-primary' : ''}`;
+  }
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+      {/* Desktop Sidebar */}
       <div className="hidden border-r bg-muted/40 md:block">
         <div className="flex h-full max-h-screen flex-col gap-2">
-          <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+          <div className="flex h-16 items-center border-b px-4 lg:px-6">
             <Logo />
           </div>
           <div className="flex-1">
@@ -100,7 +102,7 @@ export default function DashboardLayout({
                 <Link
                   key={item.label}
                   href={item.href}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+                  className={getNavItemClass(item.href)}
                 >
                   <item.icon className="h-4 w-4" />
                   {item.label}
@@ -125,23 +127,29 @@ export default function DashboardLayout({
           </div>
         </div>
       </div>
+      
+      {/* Mobile and Main Content */}
       <div className="flex flex-col">
-        <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
+        {/* Header */}
+        <header className="fixed top-0 left-0 right-0 z-40 flex h-16 items-center gap-4 border-b bg-background px-4 md:left-[220px] lg:left-[280px]">
           <div className="w-full flex-1">
             <Logo className="md:hidden" />
           </div>
         </header>
-        <main className="flex flex-1 flex-col gap-4 bg-muted/20">
+
+        {/* Main Content */}
+        <main className="flex flex-1 flex-col gap-4 bg-muted/20 overflow-y-auto pt-16 pb-16 md:pb-0">
             {children}
         </main>
+        
         {/* Mobile Bottom Nav */}
-        <footer className="md:hidden sticky bottom-0 border-t bg-background">
+        <footer className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t bg-background">
             <nav className="flex justify-around items-center h-16">
                  {navItems.map(item => (
                     <Link
                         key={item.label}
                         href={item.href}
-                        className="flex flex-col items-center gap-1 text-muted-foreground hover:text-primary transition-all"
+                        className={getMobileNavItemClass(item.href)}
                     >
                         <item.icon className="h-6 w-6" />
                         <span className="text-xs">{item.label}</span>

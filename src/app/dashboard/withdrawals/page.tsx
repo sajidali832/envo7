@@ -312,7 +312,7 @@ export default function WithdrawalsPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {isLoading ? <p>Loading...</p> : withdrawalMethod ? (
-                           <div className="space-y-2 text-sm border p-4 rounded-md bg-secondary/50">
+                           <div className="space-y-2 text-sm border p-4 rounded-md bg-secondary/50 break-words">
                                <p><strong>Method:</strong> {withdrawalMethod.method}</p>
                                <p><strong>Holder:</strong> {withdrawalMethod.holder_name}</p>
                                <p><strong>Account #:</strong> {withdrawalMethod.account_number}</p>
@@ -390,17 +390,18 @@ export default function WithdrawalsPage() {
                          ) : withdrawalMethod ? (
                             <>
                                 <p className="text-sm text-muted-foreground">Available Balance: <span className="font-bold text-primary">{userProfile?.balance.toLocaleString() ?? '0'} PKR</span></p>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col sm:flex-row gap-2">
                                     <Input 
                                         type="number" 
                                         placeholder="Amount in PKR"
                                         value={withdrawalAmount}
                                         onChange={e => setWithdrawalAmount(e.target.value)}
                                         disabled={isSubmitting || isLoading || hasPendingWithdrawal}
+                                        className="w-full"
                                     />
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <Button disabled={!withdrawalAmount || isSubmitting || isLoading || hasPendingWithdrawal}>Request</Button>
+                                            <Button disabled={!withdrawalAmount || isSubmitting || isLoading || hasPendingWithdrawal} className="w-full sm:w-auto">Request</Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
