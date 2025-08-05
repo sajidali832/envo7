@@ -73,7 +73,7 @@ export function InvestForm() {
             throw new Error("Upload Failed: Could not get the public URL for the uploaded file.");
         }
 
-        // 3. Insert investment record
+        // 3. Insert investment record (This makes it visible to Admin)
         const { error: insertError } = await supabase.from('investments').insert({
             user_id: user.id,
             plan_id: selectedPlan.id,
@@ -90,7 +90,7 @@ export function InvestForm() {
             throw new Error(`Submission Failed: ${insertError.message}`);
         }
 
-        // 4. Update the user's profile status to 'pending_approval'
+        // 4. Update the user's profile status to 'pending_approval' (CRITICAL: Do this AFTER insert)
         const { error: profileUpdateError } = await supabase
           .from('profiles')
           .update({ status: 'pending_approval' })
