@@ -8,10 +8,9 @@ import { CheckCircle, ArrowRight, Banknote, Copy, Upload } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
 import { useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/hooks/use-auth';
+import { submitInvestment } from './_actions';
 
 const plans = [
   { id: '1', name: 'Starter Plan', price: 6000 },
@@ -55,68 +54,25 @@ export function InvestForm() {
     }
     setIsLoading(true);
 
-    let screenshotUrl = '';
-    let filePath = '';
+    const formData = new FormData();
+    formData.append('userId', user.id);
+    formData.append('planId', selectedPlan.id);
+    formData.append('price', selectedPlan.price.toString());
+    formData.append('holderName', holderName);
+    formData.append('accountNumber', accountNumber);
+    formData.append('screenshotFile', screenshotFile);
 
-    try {
-        // Step 1: Upload the screenshot to Supabase Storage.
-        const fileExt = screenshotFile.name.split('.').pop();
-        const fileName = `${uuidv4()}.${fileExt}`;
-        filePath = `${user.id}/${fileName}`;
-        const { error: uploadError } = await supabase.storage.from('proofs').upload(filePath, screenshotFile);
+    const result = await submitInvestment(formData);
 
-        if (uploadError) {
-            throw new Error(`Upload Failed: ${uploadError.message}`);
-        }
-
-        // Step 2: Get the public URL of the uploaded file.
-        const { data: urlData } = supabase.storage.from('proofs').getPublicUrl(filePath);
-        screenshotUrl = urlData?.publicUrl ?? '';
-        if (!screenshotUrl) {
-            throw new Error("Upload Failed: Could not get the public URL for the uploaded file.");
-        }
-
-        // Step 3: Insert the investment record into the database.
-        const { error: insertError } = await supabase.from('investments').insert({
-            user_id: user.id,
-            plan_id: selectedPlan.id,
-            amount: selectedPlan.price,
-            status: 'pending', 
-            proof_screenshot_url: screenshotUrl,
-            user_account_holder_name: holderName,
-            user_account_number: accountNumber
-        });
-
-        if (insertError) {
-            throw new Error(`Submission Failed: ${insertError.message}`);
-        }
-
-        // Step 4: Update the user's profile status to 'pending_approval'.
-        const { error: profileUpdateError } = await supabase
-          .from('profiles')
-          .update({ status: 'pending_approval' })
-          .eq('id', user.id);
-
-        if (profileUpdateError) {
-            // This is a critical error, but the main submission succeeded.
-            // Log it for debugging, but still proceed to redirect the user.
-            console.error('CRITICAL: Failed to update user status post-investment:', profileUpdateError.message);
-            toast({ variant: 'destructive', title: 'Status Update Failed', description: "Your submission was received, but we couldn't update your account status. Please contact support." });
-        }
-
-        // Step 5: All operations are successful. Redirect to the pending page.
-        router.push('/approval-pending');
-
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-        toast({ variant: 'destructive', title: 'Error', description: errorMessage });
-        
-        // Cleanup orphaned file if it was uploaded but a later step failed
-        if (filePath) {
-            await supabase.storage.from('proofs').remove([filePath]);
-        }
-
-        setIsLoading(false); // Stop loading on any failure.
+    if (result.success) {
+      router.push('/approval-pending');
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Submission Failed',
+        description: result.error || 'An unexpected error occurred. Please try again.',
+      });
+      setIsLoading(false);
     }
   };
 
@@ -178,7 +134,7 @@ export function InvestForm() {
                     <Label htmlFor="screenshot">Upload Screenshot (Proof)</Label>
                     <div className="flex items-center gap-2 p-2 border rounded-md border-dashed">
                       <Upload className="h-5 w-5 text-muted-foreground" />
-                      <Input id="screenshot" type="file" required onChange={(e) => setScreenshotFile(e.target.files ? e.target.files[0] : null)} className="border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto" />
+                      <Input id="screenshot" type="file" required accept="image/*" onChange={(e) => setScreenshotFile(e.target.files ? e.target.files[0] : null)} className="border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto" />
                     </div>
                 </div>
             </div>
