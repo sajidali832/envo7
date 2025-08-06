@@ -20,20 +20,42 @@ type DashboardStats = {
     total_referral_earnings: number;
 }
 
+type EarningHistoryItem = {
+    id: number;
+    amount: number;
+    type: string;
+    created_at: string;
+}
+
 export default function DashboardPage() {
     const { user } = useAuth();
     const [stats, setStats] = useState<DashboardStats | null>(null);
+    const [earningsHistory, setEarningsHistory] = useState<EarningHistoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
             if (user) {
                 setIsLoading(true);
-                const { data: profileData, error: profileError } = await supabase
+                
+                const profilePromise = supabase
                     .from('profiles')
                     .select('balance, total_investment, referral_earnings')
                     .eq('id', user.id)
                     .single();
+
+                const historyPromise = supabase
+                    .from('earnings_history')
+                    .select('id, amount, type, created_at')
+                    .eq('user_id', user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+
+                const [
+                    { data: profileData, error: profileError }, 
+                    { data: historyData, error: historyError }
+                ] = await Promise.all([profilePromise, historyPromise]);
+
 
                 if (profileError) {
                     console.error('Error fetching profile:', profileError);
@@ -44,6 +66,13 @@ export default function DashboardPage() {
                         total_referral_earnings: profileData?.referral_earnings || 0,
                     });
                 }
+
+                if (historyError) {
+                    console.error('Error fetching earnings history:', historyError);
+                } else {
+                    setEarningsHistory(historyData || []);
+                }
+
                 setIsLoading(false);
             }
         };
@@ -56,9 +85,6 @@ export default function DashboardPage() {
         { title: "Total Investment", value: `${stats?.total_investment.toLocaleString() || '0'} PKR`, icon: <Landmark />, glow: "accent" },
         { title: "Total Referral Earnings", value: `${stats?.total_referral_earnings.toLocaleString() || '0'} PKR`, icon: <Users />, glow: "primary" },
     ];
-    
-    // Earnings history will be implemented later
-    const earningsHistory: any[] = [];
 
   return (
     <div className="p-4 md:p-8 space-y-6">
@@ -87,21 +113,23 @@ export default function DashboardPage() {
 
         <Card>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><List /> Earnings History</CardTitle>
+                <CardTitle className="flex items-center gap-2"><List /> Recent Transactions</CardTitle>
                 <CardDescription>A log of your daily earnings and bonuses.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
-                    {earningsHistory.length > 0 ? earningsHistory.map((item, index) => (
-                        <div key={index} className="flex items-center">
+                    {isLoading ? <p>Loading history...</p> : earningsHistory.length > 0 ? earningsHistory.map((item) => (
+                        <div key={item.id} className="flex items-center">
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary">
                                 <ArrowUpRight className="h-4 w-4 text-green-500" />
                             </div>
                             <div className="ml-4 space-y-1">
-                                <p className="text-sm font-medium leading-none">{item.description}</p>
-                                <p className="text-sm text-muted-foreground">{item.date}</p>
+                                <p className="text-sm font-medium leading-none">
+                                    {item.type === 'daily_earning' ? 'Daily Earning Credited' : 'Bonus'}
+                                </p>
+                                <p className="text-sm text-muted-foreground">{new Date(item.created_at).toLocaleDateString()}</p>
                             </div>
-                            <div className="ml-auto font-medium text-green-600">+{item.amount}</div>
+                            <div className="ml-auto font-medium text-green-600">+{item.amount.toLocaleString()} PKR</div>
                         </div>
                     )) : (
                         <div className="text-center text-muted-foreground py-8">

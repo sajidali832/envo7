@@ -29,41 +29,62 @@ Deno.serve(async (req) => {
       return new Response('No active users to process.', { status: 200 });
     }
 
+    const profileUpdates: any[] = [];
+    const earningsHistoryInserts: any[] = [];
+    const today = new Date().toISOString();
+
     // 2. Prepare updates for each user
-    const updates = profiles.map(profile => {
+    for (const profile of profiles) {
       const plan = planDetails[profile.selected_plan];
       if (!plan) {
         console.warn(`No plan details found for plan ID ${profile.selected_plan} on user ${profile.id}. Skipping.`);
-        return null;
+        continue;
       }
       
       const dailyReturn = plan.dailyReturn;
       const newBalance = (profile.balance || 0) + dailyReturn;
       const newDailyEarnings = (profile.daily_earnings || 0) + dailyReturn;
 
-      return {
+      profileUpdates.push({
         id: profile.id,
         balance: newBalance,
         daily_earnings: newDailyEarnings,
-      };
-    }).filter(update => update !== null); // Filter out any skipped users
+      });
 
-    if (updates.length === 0) {
+      earningsHistoryInserts.push({
+        user_id: profile.id,
+        amount: dailyReturn,
+        type: 'daily_earning',
+        created_at: today,
+      });
+    }
+
+    if (profileUpdates.length === 0) {
       return new Response('No valid user plans to update.', { status: 200 });
     }
 
     // 3. Bulk update the profiles table
-    // Note: Supabase upsert is used here as a way to perform a bulk update based on the primary key `id`.
     const { error: updateError } = await supabaseAdmin
       .from('profiles')
-      .upsert(updates as any, { onConflict: 'id' });
+      .upsert(profileUpdates, { onConflict: 'id' });
 
     if (updateError) {
       throw updateError;
     }
 
-    console.log(`Successfully processed daily earnings for ${updates.length} users.`);
-    return new Response(JSON.stringify({ message: `Processed daily earnings for ${updates.length} users.` }), {
+    // 4. Bulk insert into earnings history
+    const { error: historyError } = await supabaseAdmin
+        .from('earnings_history')
+        .insert(earningsHistoryInserts);
+
+    if (historyError) {
+        // Log the error, but don't fail the entire job as profiles are already updated.
+        console.error('Failed to insert into earnings history:', historyError);
+    }
+
+
+    console.log(`Successfully processed daily earnings for ${profileUpdates.length} users.`);
+    return new Response(JSON.stringify({ message: `Processed daily earnings for ${profileUpdates.length} users.` }), {
       headers: { 'Content-Type': 'application/json' },
       status: 200,
     });
