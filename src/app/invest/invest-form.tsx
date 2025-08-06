@@ -62,18 +62,17 @@ export function InvestForm() {
     formData.append('accountNumber', accountNumber);
     formData.append('screenshotFile', screenshotFile);
 
-    const result = await submitInvestment(formData);
+    // Don't await the result. Redirect immediately for a better UX.
+    // The server action will run in the background.
+    // The /approval-pending page will reflect the status via its real-time listener.
+    submitInvestment(formData).catch(err => {
+        // We can log the error, but the user is already on the next page.
+        // A more advanced implementation might use a global state to show a toast on the next page if an error occurs.
+        console.error("Background submission failed:", err);
+    });
 
-    if (result.success) {
-      router.push('/approval-pending');
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Submission Failed',
-        description: result.error || 'An unexpected error occurred. Please try again.',
-      });
-      setIsLoading(false);
-    }
+    // Redirect immediately.
+    router.push('/approval-pending');
   };
 
   if (!selectedPlan) {
