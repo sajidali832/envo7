@@ -36,9 +36,7 @@ Deno.serve(async (req) => {
     }
 
     const profileUpdates: any[] = [];
-    const earningsHistoryInserts: any[] = [];
-    const today = new Date().toISOString();
-
+    
     // 2. Prepare updates for each user
     for (const profile of profiles) {
       const plan = planDetails[profile.selected_plan];
@@ -55,13 +53,6 @@ Deno.serve(async (req) => {
         id: profile.id,
         balance: newBalance,
         daily_earnings: newDailyEarnings,
-      });
-
-      earningsHistoryInserts.push({
-        user_id: profile.id,
-        amount: dailyReturn,
-        type: 'daily_earning',
-        created_at: today,
       });
     }
 
@@ -82,18 +73,7 @@ Deno.serve(async (req) => {
       console.error('Error updating profiles:', updateError);
       throw updateError;
     }
-
-    // 4. Bulk insert into earnings history
-    const { error: historyError } = await supabaseAdmin
-        .from('earnings_history')
-        .insert(earningsHistoryInserts);
-
-    if (historyError) {
-        // Log the error, but don't fail the entire job as profiles are already updated.
-        console.error('Failed to insert into earnings history:', historyError);
-    }
-
-
+    
     const successMessage = `Successfully processed daily earnings for ${profileUpdates.length} users.`;
     console.log(successMessage);
     return new Response(JSON.stringify({ message: successMessage }), {

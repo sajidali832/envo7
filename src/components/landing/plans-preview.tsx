@@ -1,12 +1,14 @@
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { GlowingCard, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/glowing-card';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Star } from 'lucide-react';
 
 const plans = [
-  { title: 'Starter Plan', price: '6,000 PKR', daily: '120 PKR', features: ['80 Days Validity', 'Standard Referral Bonus'] },
-  { title: 'Advanced Plan', price: '12,000 PKR', daily: '260 PKR', features: ['75 Days Validity', 'Higher Referral Bonus'] },
-  { title: 'Pro Plan', price: '28,000 PKR', daily: '560 PKR', features: ['75 Days Validity', 'Pro Referral Program'] },
+  { id: 0, title: 'Free Plan', price: '0 PKR', daily: '20 PKR', features: ['90 Days Validity', 'Standard Referral Bonus'], glowColor: 'primary' },
+  { id: 1, title: 'Starter Plan', price: '6,000 PKR', daily: '120 PKR', features: ['80 Days Validity', 'Standard Referral Bonus'], glowColor: 'primary' },
+  { id: 2, title: 'Advanced Plan', price: '12,000 PKR', daily: '260 PKR', features: ['75 Days Validity', 'Higher Referral Bonus'], glowColor: 'accent' },
+  { id: 3, title: 'Pro Plan', price: '28,000 PKR', daily: '560 PKR', features: ['75 Days Validity', 'Pro Referral Program'], glowColor: 'primary' },
 ];
 
 export function PlansSection() {
@@ -19,10 +21,16 @@ export function PlansSection() {
             Choose a plan that suits your financial goals. Each plan is designed to provide you with consistent daily returns and rewarding bonuses.
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
           {plans.map((plan, index) => (
-            <GlowingCard key={plan.title} className="flex flex-col" glowColor={index === 1 ? 'accent' : 'primary'}>
+            <GlowingCard key={plan.title} className="flex flex-col" glowColor={plan.glowColor as any}>
               <CardHeader className="text-center">
+                 {plan.id === 0 && (
+                       <div className="mx-auto bg-green-600 text-white rounded-full px-4 py-1 text-sm font-semibold mb-2 flex items-center gap-2">
+                        <Star className="h-4 w-4" />
+                        <span>Free Tier</span>
+                      </div>
+                    )}
                 <CardTitle className="text-2xl">{plan.title}</CardTitle>
                 <CardDescription>
                   <span className="text-3xl sm:text-4xl font-bold text-foreground">{plan.price}</span>
@@ -31,7 +39,7 @@ export function PlansSection() {
               <CardContent className="flex-grow">
                 <div className="text-center mb-6">
                   <p className="text-lg">
-                    <span className="font-bold text-primary text-2xl">{plan.daily}</span> / Day
+                    <span className={`font-bold text-2xl ${plan.glowColor === 'primary' ? 'text-primary' : 'text-accent'}`}>{plan.daily}</span> / Day
                   </p>
                 </div>
                 <ul className="space-y-3">
@@ -45,7 +53,7 @@ export function PlansSection() {
               </CardContent>
               <CardFooter>
                 <Button className="w-full" size="lg" asChild>
-                  <Link href={`/register?plan=${index + 1}`}>Select Plan</Link>
+                  <Link href={`/register?plan=${plan.id}`}>Select Plan</Link>
                 </Button>
               </CardFooter>
             </GlowingCard>

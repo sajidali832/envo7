@@ -38,23 +38,11 @@ export default function DashboardPage() {
             if (user) {
                 setIsLoading(true);
                 
-                const profilePromise = supabase
+                const { data: profileData, error: profileError } = await supabase
                     .from('profiles')
                     .select('balance, total_investment, referral_earnings')
                     .eq('id', user.id)
                     .single();
-
-                const historyPromise = supabase
-                    .from('earnings_history')
-                    .select('id, amount, type, created_at')
-                    .eq('user_id', user.id)
-                    .order('created_at', { ascending: false })
-                    .limit(10);
-
-                const [
-                    { data: profileData, error: profileError }, 
-                    { data: historyData, error: historyError }
-                ] = await Promise.all([profilePromise, historyPromise]);
 
 
                 if (profileError) {
@@ -66,12 +54,10 @@ export default function DashboardPage() {
                         total_referral_earnings: profileData?.referral_earnings || 0,
                     });
                 }
-
-                if (historyError) {
-                    console.error('Error fetching earnings history:', historyError.message || historyError);
-                } else {
-                    setEarningsHistory(historyData || []);
-                }
+                
+                // For now, we are disabling earnings history fetching to prevent crashes.
+                // A future update will re-enable this with a proper database table.
+                setEarningsHistory([]);
 
                 setIsLoading(false);
             }
