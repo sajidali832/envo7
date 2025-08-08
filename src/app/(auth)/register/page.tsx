@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { RegisterForm } from './register-form';
 import { GlowingCard, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/glowing-card';
 import { Hourglass } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function LoadingState() {
     return (
@@ -11,23 +12,24 @@ function LoadingState() {
                  <div className="mx-auto bg-secondary rounded-full h-12 w-12 flex items-center justify-center mb-4">
                     <Hourglass className="h-8 w-8 animate-spin" />
                 </div>
-                <CardTitle className="text-2xl">Loading...</CardTitle>
-                <CardDescription>Preparing your registration form.</CardDescription>
+                <CardTitle>Loading Form</CardTitle>
+                <CardDescription>Preparing your registration.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="h-16 bg-muted/50 rounded-lg animate-pulse"></div>
+                <div className="h-16 bg-secondary rounded-lg animate-pulse"></div>
                 <div className="space-y-2">
-                    <div className="h-4 w-1/4 bg-muted/50 rounded animate-pulse"></div>
-                    <div className="h-10 bg-muted/50 rounded-lg animate-pulse"></div>
+                    <Skeleton className="h-4 w-1/4" />
+                    <Skeleton className="h-10 w-full" />
                 </div>
                 <div className="space-y-2">
-                    <div className="h-4 w-1/4 bg-muted/50 rounded animate-pulse"></div>
-                    <div className="h-10 bg-muted/50 rounded-lg animate-pulse"></div>
+                    <Skeleton className="h-4 w-1/4" />
+                    <Skeleton className="h-10 w-full" />
                 </div>
                  <div className="space-y-2">
-                    <div className="h-4 w-1/4 bg-muted/50 rounded animate-pulse"></div>
-                    <div className="h-10 bg-muted/50 rounded-lg animate-pulse"></div>
+                    <Skeleton className="h-4 w-1/4" />
+                    <Skeleton className="h-10 w-full" />
                 </div>
+                <Skeleton className="h-11 w-full mt-4" />
             </CardContent>
         </GlowingCard>
     )

@@ -11,6 +11,19 @@ import { ReviewsSection } from '@/components/landing/reviews';
 import { Footer } from '@/components/landing/footer';
 import { PlansSection } from '@/components/landing/plans-preview';
 import { Separator } from '@/components/ui/separator';
+import { Hourglass } from 'lucide-react';
+
+function FullPageLoader() {
+  return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+          <div className="flex items-center justify-center p-4 rounded-full border shadow-md bg-secondary mb-4">
+               <Hourglass className="h-8 w-8 animate-spin text-primary" />
+          </div>
+          <p className="text-lg font-semibold">Loading Application...</p>
+          <p className="text-sm text-muted-foreground">Please wait a moment.</p>
+      </div>
+  )
+}
 
 export default function Home() {
   const { user, profile, loading } = useAuth();
@@ -40,11 +53,7 @@ export default function Home() {
 
   // While loading or redirecting, show a blank screen or a minimal loader.
   if (isRedirecting) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-          <p>Loading...</p>
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   // If not redirecting, it means no user is logged in, so show the landing page.

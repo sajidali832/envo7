@@ -9,6 +9,7 @@ import {
   Wallet,
   Users,
   Settings,
+  Hourglass,
 } from "lucide-react";
 
 import {
@@ -28,6 +29,18 @@ const navItems = [
     { href: "/dashboard/referrals", icon: Users, label: "Referrals" },
     { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];
+
+function DashboardLoading() {
+    return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+            <div className="flex items-center justify-center p-4 rounded-full border shadow-md bg-secondary mb-4">
+                 <Hourglass className="h-8 w-8 animate-spin text-primary" />
+            </div>
+            <p className="text-lg font-semibold">Loading Dashboard...</p>
+            <p className="text-sm text-muted-foreground">Please wait a moment.</p>
+        </div>
+    );
+}
 
 export default function DashboardLayout({
   children,
@@ -63,19 +76,11 @@ export default function DashboardLayout({
 
 
   if (loading) {
-      return (
-          <div className="min-h-screen flex items-center justify-center">
-              <p>Loading Dashboard...</p>
-          </div>
-      );
+      return <DashboardLoading />;
   }
 
   if (!user || !profile || profile.status !== 'active') {
-    return (
-        <div className="min-h-screen flex items-center justify-center">
-            <p>Checking status...</p>
-        </div>
-    );
+    return <DashboardLoading />;
   }
 
   const getNavItemClass = (href: string) => {

@@ -9,6 +9,7 @@ export type AuthProfile = {
     id: string;
     username: string;
     status: 'pending_investment' | 'pending_approval' | 'active' | 'inactive' | 'rejected';
+    selected_plan: string;
 } | null;
 
 type AuthContextType = {
@@ -40,7 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
         const { data, error } = await supabase
             .from('profiles')
-            .select('id, username, status')
+            .select('id, username, status, selected_plan')
             .eq('id', user.id)
             .single();
 
