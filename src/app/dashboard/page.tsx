@@ -68,7 +68,7 @@ export default function DashboardPage() {
                 }
 
                 if (historyError) {
-                    console.error('Error fetching earnings history:', historyError);
+                    console.error('Error fetching earnings history:', historyError.message || historyError);
                 } else {
                     setEarningsHistory(historyData || []);
                 }
