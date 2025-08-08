@@ -1,6 +1,8 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const planDetails: { [key: string]: { dailyReturn: number } } = {
+  '0': { dailyReturn: 20 },   // Free Plan
   '1': { dailyReturn: 120 },  // Starter Plan
   '2': { dailyReturn: 260 },  // Advanced Plan
   '3': { dailyReturn: 560 },  // Pro Plan
@@ -15,18 +17,22 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // 1. Fetch all active user profiles
+    // 1. Fetch all active user profiles with their plan
     const { data: profiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
       .select('id, balance, daily_earnings, selected_plan')
       .eq('status', 'active');
 
     if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
       throw profilesError;
     }
 
     if (!profiles || profiles.length === 0) {
-      return new Response('No active users to process.', { status: 200 });
+      return new Response(JSON.stringify({ message: 'No active users to process.' }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      });
     }
 
     const profileUpdates: any[] = [];
@@ -60,15 +66,20 @@ Deno.serve(async (req) => {
     }
 
     if (profileUpdates.length === 0) {
-      return new Response('No valid user plans to update.', { status: 200 });
+      return new Response(JSON.stringify({ message: 'No valid user plans to update.' }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      });
     }
-
+    
     // 3. Bulk update the profiles table
+    // Using upsert is a safe way to update multiple rows.
     const { error: updateError } = await supabaseAdmin
       .from('profiles')
       .upsert(profileUpdates, { onConflict: 'id' });
 
     if (updateError) {
+      console.error('Error updating profiles:', updateError);
       throw updateError;
     }
 
@@ -83,15 +94,17 @@ Deno.serve(async (req) => {
     }
 
 
-    console.log(`Successfully processed daily earnings for ${profileUpdates.length} users.`);
-    return new Response(JSON.stringify({ message: `Processed daily earnings for ${profileUpdates.length} users.` }), {
+    const successMessage = `Successfully processed daily earnings for ${profileUpdates.length} users.`;
+    console.log(successMessage);
+    return new Response(JSON.stringify({ message: successMessage }), {
       headers: { 'Content-Type': 'application/json' },
       status: 200,
     });
 
   } catch (error) {
-    console.error('Error processing daily earnings:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error('Error in daily earnings function:', errorMessage);
+    return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { 'Content-Type': 'application/json' },
       status: 500,
     });

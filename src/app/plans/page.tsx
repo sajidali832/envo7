@@ -23,9 +23,10 @@ export default async function PlansPage({ searchParams }: { searchParams: { ref?
   }
 
   const plans = [
-    { id: 1, title: 'Starter Plan', price: 6000, dailyReturn: 120, validity: 80, bonus: 'Standard', glowColor: 'primary' },
-    { id: 2, title: 'Advanced Plan', price: 12000, dailyReturn: 260, validity: 75, bonus: 'Higher', glowColor: 'accent' },
-    { id: 3, title: 'Pro Plan', price: 28000, dailyReturn: 560, validity: 75, bonus: 'Pro Program', glowColor: 'primary' },
+    { id: 0, title: 'Free Plan', price: '0 PKR', priceVal: 0, dailyReturn: 20, validity: 90, bonus: '600 PKR Referral Bonus', glowColor: 'primary' },
+    { id: 1, title: 'Starter Plan', price: '6,000 PKR', priceVal: 6000, dailyReturn: 120, validity: 80, bonus: 'Standard Referral Bonus', glowColor: 'primary' },
+    { id: 2, title: 'Advanced Plan', price: '12,000 PKR', priceVal: 12000, dailyReturn: 260, validity: 75, bonus: 'Higher Referral Bonus', glowColor: 'accent', isPopular: true },
+    { id: 3, title: 'Pro Plan', price: '28,000 PKR', priceVal: 28000, dailyReturn: 560, validity: 75, bonus: 'Pro Program Referral Bonus', glowColor: 'primary' },
   ];
 
   return (

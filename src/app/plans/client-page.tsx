@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { GlowingCard, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/glowing-card';
-import { CheckCircle, Zap, Gift } from 'lucide-react';
+import { CheckCircle, Zap, Gift, Star } from 'lucide-react';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/landing/footer';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -12,11 +12,13 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 type Plan = {
     id: number;
     title: string;
-    price: number;
+    price: string;
+    priceVal: number;
     dailyReturn: number;
     validity: number;
     bonus: string;
     glowColor: string;
+    isPopular?: boolean;
 }
 
 type PlansClientPageProps = {
@@ -47,11 +49,17 @@ export function PlansClientPage({ plans, referrerName, refId }: PlansClientPageP
                 We offer a range of investment plans to match your ambitions. Each plan is a step towards achieving your financial goals with consistent returns.
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 items-stretch">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 items-stretch">
               {plans.map((plan) => (
                 <GlowingCard key={plan.id} className="flex flex-col" glowColor={plan.glowColor as any}>
                   <CardHeader className="text-center">
-                    {plan.id === 2 && (
+                    {plan.id === 0 && (
+                       <div className="mx-auto bg-green-600 text-white rounded-full px-4 py-1 text-sm font-semibold mb-2 flex items-center gap-2">
+                        <Star className="h-4 w-4" />
+                        <span>Free Tier</span>
+                      </div>
+                    )}
+                    {plan.isPopular && (
                        <div className="mx-auto bg-accent text-accent-foreground rounded-full px-4 py-1 text-sm font-semibold mb-2 flex items-center gap-2">
                         <Zap className="h-4 w-4" />
                         <span>Most Popular</span>
@@ -59,7 +67,7 @@ export function PlansClientPage({ plans, referrerName, refId }: PlansClientPageP
                     )}
                     <CardTitle className="text-2xl">{plan.title}</CardTitle>
                     <CardDescription>
-                      <span className="text-3xl sm:text-4xl font-bold text-foreground">{plan.price.toLocaleString()} PKR</span>
+                      <span className="text-3xl sm:text-4xl font-bold text-foreground">{plan.price}</span>
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex-grow">
@@ -75,7 +83,7 @@ export function PlansClientPage({ plans, referrerName, refId }: PlansClientPageP
                       </li>
                       <li className="flex items-center gap-3">
                         <CheckCircle className="h-5 w-5 text-green-500" />
-                        <span>{plan.bonus} Referral Bonus</span>
+                        <span>{plan.bonus}</span>
                       </li>
                        <li className="flex items-center gap-3">
                         <CheckCircle className="h-5 w-5 text-green-500" />
@@ -85,6 +93,12 @@ export function PlansClientPage({ plans, referrerName, refId }: PlansClientPageP
                         <CheckCircle className="h-5 w-5 text-green-500" />
                         <span>24/7 Support</span>
                       </li>
+                       {plan.id === 0 && (
+                         <li className="flex items-center gap-3">
+                          <CheckCircle className="h-5 w-5 text-green-500" />
+                          <span>No Investment Required</span>
+                        </li>
+                       )}
                     </ul>
                   </CardContent>
                   <CardFooter>

@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 const plans = [
+  { id: '0', name: 'Free Plan' },
   { id: '1', name: 'Starter Plan' },
   { id: '2', name: 'Advanced Plan' },
   { id: '3', name: 'Pro Plan' },
@@ -25,6 +26,7 @@ export function RegisterForm() {
   const planId = searchParams.get('plan');
   const refId = searchParams.get('ref');
   const selectedPlan = plans.find(p => p.id === planId);
+  const isFreePlan = planId === '0';
 
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -43,13 +45,10 @@ export function RegisterForm() {
     setIsLoading(true);
     setError(null);
 
-    // Step 1: Sign up the user with email and password.
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: email,
       password: password,
       options: {
-        // This data is for auth schema, not public profiles.
-        // We will create the profile manually after success.
         data: {
             username: username,
         }
@@ -57,7 +56,6 @@ export function RegisterForm() {
     });
     
     if (signUpError) {
-       // Check for specific duplicate username error from the database trigger.
        if (signUpError.message.includes("User already registered")) {
             setError('This email address is already registered. Please sign in.');
        }
@@ -75,8 +73,10 @@ export function RegisterForm() {
         return;
     }
 
-    // Step 2: Manually create the public profile for the new user.
-    // This ensures the profile exists before they get to the investment page.
+    // Determine initial status based on plan
+    const initialStatus = isFreePlan ? 'active' : 'pending_investment';
+    const totalInvestment = isFreePlan ? 0 : null; // Free plan has no investment amount
+
     const { error: profileError } = await supabase
       .from('profiles')
       .insert({
@@ -84,30 +84,32 @@ export function RegisterForm() {
         username: username,
         selected_plan: selectedPlan?.id,
         referred_by: refId || null,
-        status: 'pending_investment' // New initial status
+        status: initialStatus,
+        total_investment: totalInvestment
       });
       
     if (profileError) {
-        // This is a critical error. The user exists in auth but not in profiles.
-        // We should inform the user and maybe try to clean up the auth user.
         setError(`Failed to create your profile: ${profileError.message}. Please contact support.`);
-        // Attempt to delete the orphaned auth user
-        // You might need a server-side function for this in a real app for security.
-        await supabase.auth.signOut(); // Sign out first
-        // As an admin/service_role you could delete here, but not on client.
+        await supabase.auth.signOut(); 
         console.error("CRITICAL: Auth user created but profile insertion failed.", user.id);
         setIsLoading(false);
         return;
     }
     
-    // Step 3: Registration and profile creation are successful. Redirect to invest.
-    toast({
-        title: 'Account Created Successfully!',
-        description: "You're now being redirected to complete your investment.",
-    });
-    
-    const investmentUrl = `/invest?plan=${planId}`;
-    router.push(investmentUrl);
+    if (isFreePlan) {
+        toast({
+            title: 'Account Created Successfully!',
+            description: "Your Free Plan is active. Welcome to the dashboard!",
+        });
+        router.push('/dashboard');
+    } else {
+        toast({
+            title: 'Account Created Successfully!',
+            description: "You're now being redirected to complete your investment.",
+        });
+        const investmentUrl = `/invest?plan=${planId}`;
+        router.push(investmentUrl);
+    }
   };
   
   if (!selectedPlan) {
@@ -119,7 +121,7 @@ export function RegisterForm() {
       <form onSubmit={handleRegister}>
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Create an Account</CardTitle>
-          <CardDescription>Join Envo-Pro and start your investment journey.</CardDescription>
+          <CardDescription>Join Envo-Pro and start your journey.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {selectedPlan && (
@@ -148,7 +150,7 @@ export function RegisterForm() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full glow-accent" isLoading={isLoading}>Create Account</Button>
+          <Button type="submit" className="w-full glow-accent" isLoading={isLoading}>{isFreePlan ? 'Start Now' : 'Create Account'}</Button>
           <p className="text-sm text-muted-foreground">
             Already have an account?{' '}
             <Link href="/sign-in" className="font-semibold text-primary hover:underline">

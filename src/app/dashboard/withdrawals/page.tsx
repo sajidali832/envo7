@@ -68,7 +68,8 @@ type UserProfile = {
     selected_plan: string;
 }
 
-const planRules: { [key: string]: { freeWithdrawals: number; requiredReferrals: number; min: number; max: number; } } = {
+const planRules: { [key: string]: { freeWithdrawals?: number; requiredReferrals?: number; min: number; max: number; } } = {
+    '0': { min: 100, max: 400 }, // Free Plan
     '1': { freeWithdrawals: 2, requiredReferrals: 2, min: 600, max: 1600 }, // Starter
     '2': { freeWithdrawals: 3, requiredReferrals: 2, min: 600, max: 2000 }, // Advanced
     '3': { freeWithdrawals: 5, requiredReferrals: 2, min: 600, max: 4000 }, // Pro
@@ -229,8 +230,8 @@ export default function WithdrawalsPage() {
             return;
         }
 
-        // Check withdrawal count and referral requirements
-        if (rules) {
+        // Check withdrawal count and referral requirements (skip for free plan)
+        if (rules && rules.freeWithdrawals !== undefined && rules.requiredReferrals !== undefined) {
             const { count: approvedWithdrawals, error: wError } = await supabase.from('withdrawals').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'approved');
             const { count: referrals, error: rError } = await supabase.from('referrals').select('*', { count: 'exact', head: true }).eq('referrer_id', user.id);
 
